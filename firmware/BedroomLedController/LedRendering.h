@@ -159,6 +159,11 @@ float phaseFromMillis(uint32_t now, uint32_t periodMs) {
   return static_cast<float>(now % periodMs) / static_cast<float>(periodMs);
 }
 
+float easeInOut01(float t) {
+  float x = clamp01(t);
+  return x * x * (3.0f - 2.0f * x);
+}
+
 uint8_t sineEase8(float phase) {
   float wave = (sinf((phase * TWO_PI) - (PI * 0.5f)) + 1.0f) * 0.5f;
   return clampByte(wave * 255.0f);
@@ -249,6 +254,10 @@ uint8_t smoothingStepForMode(Mode mode) {
     return DEFAULT_COLORFUL_SMOOTHING;
   }
   return DEFAULT_MOTION_SMOOTHING;
+}
+
+void resetTemporalSmoothing() {
+  smoothedFrameInitialized = false;
 }
 
 void applyTemporalSmoothingToFrame() {
@@ -644,11 +653,11 @@ void renderSatinBreathing(uint32_t now) {
   float phase = phaseFromMillis(now, 11000UL);
   float envelope;
   if (phase < 0.38f) {
-    envelope = sineEase8(phase / 0.38f) / 255.0f;
+    envelope = easeInOut01(phase / 0.38f);
   } else if (phase < 0.50f) {
     envelope = 1.0f;
   } else {
-    envelope = 1.0f - (sineEase8((phase - 0.50f) / 0.50f) / 255.0f);
+    envelope = 1.0f - easeInOut01((phase - 0.50f) / 0.50f);
   }
   uint8_t baseLevel = clamp8(46 + static_cast<int>(envelope * 172.0f));
   uint16_t maxPosition = LED_COUNT > 1 ? LED_COUNT - 1 : 1;

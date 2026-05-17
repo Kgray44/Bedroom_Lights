@@ -317,11 +317,23 @@ void setMode(Mode mode) {
   if (settings.mode != mode) {
     settings.mode = mode;
     resetAnimationState();
+    resetTemporalSmoothing();
   }
   ledsDirty = true;
 }
 
+void recordMutation(const char* route, const char* action, uint8_t beforeBrightness, Mode beforeMode) {
+  copyFixedCString(lastMutation.route, sizeof(lastMutation.route), route);
+  copyFixedCString(lastMutation.action, sizeof(lastMutation.action), action);
+  copyFixedString(lastMutation.beforeMode, sizeof(lastMutation.beforeMode), modeKey(beforeMode));
+  copyFixedString(lastMutation.afterMode, sizeof(lastMutation.afterMode), modeKey(settings.mode));
+  lastMutation.atMs = millis();
+  lastMutation.beforeBrightness = beforeBrightness;
+  lastMutation.afterBrightness = settings.masterBrightness;
+}
+
 bool setMasterBrightness(uint8_t value) {
+  resetTemporalSmoothing();
   if (settings.masterBrightness == value) {
     return false;
   }
@@ -333,6 +345,7 @@ bool setMasterBrightness(uint8_t value) {
 }
 
 bool setActiveColor(uint8_t r, uint8_t g, uint8_t b) {
+  resetTemporalSmoothing();
   bool changed =
     settings.color.r != r ||
     settings.color.g != g ||
@@ -354,6 +367,7 @@ bool setActiveColor(uint8_t r, uint8_t g, uint8_t b) {
 }
 
 bool setWhiteTemperature(uint16_t kelvin) {
+  resetTemporalSmoothing();
   uint16_t clampedKelvin = constrain(kelvin, 2700, 6500);
   Rgb nextColor = kelvinToRgb(clampedKelvin);
   bool changed =
@@ -515,7 +529,6 @@ String buildStateJson() {
   json += escapeJson(settings.activePaletteId);
   json += R"json(","activePaletteName":")json";
   json += escapeJson(activePaletteName());
-  json += R"json(")json";
   json += R"json(","hex":")json";
   json += colorHexString();
   json += R"json(","kelvin":)json";
@@ -548,6 +561,20 @@ String buildStateJson() {
   json += MAX_FAVORITES;
   json += R"json(,"lastActionStatus":")json";
   json += escapeJson(lastActionStatus);
+  json += R"json(","lastMutationRoute":")json";
+  json += escapeJson(fixedString(lastMutation.route));
+  json += R"json(","lastMutationAction":")json";
+  json += escapeJson(fixedString(lastMutation.action));
+  json += R"json(","lastMutationMs":)json";
+  json += lastMutation.atMs;
+  json += R"json(,"lastMutationBeforeBrightness":)json";
+  json += lastMutation.beforeBrightness;
+  json += R"json(,"lastMutationAfterBrightness":)json";
+  json += lastMutation.afterBrightness;
+  json += R"json(,"lastMutationBeforeMode":")json";
+  json += escapeJson(fixedString(lastMutation.beforeMode));
+  json += R"json(","lastMutationAfterMode":")json";
+  json += escapeJson(fixedString(lastMutation.afterMode));
   json += R"json(")json";
   json += R"json(,"lastSurpriseSummary":")json";
   json += escapeJson(lastSurpriseSummary);
@@ -816,6 +843,9 @@ void handleOtaPage() {
 }
 
 void handleSet() {
+  uint8_t beforeBrightness = settings.masterBrightness;
+  Mode beforeMode = settings.mode;
+
   if (server.hasArg("color")) {
     uint8_t r;
     uint8_t g;
@@ -1032,6 +1062,7 @@ void handleSet() {
     setByteSetting(settings.rainbowPeriodSec, requestedPeriod, 1, 30, false);
   }
 
+  recordMutation("/set", "set", beforeBrightness, beforeMode);
   handleState();
 }
 
@@ -1058,7 +1089,10 @@ void handleApiBrightness() {
     return;
   }
 
+  uint8_t beforeBrightness = settings.masterBrightness;
+  Mode beforeMode = settings.mode;
   setMasterBrightness(static_cast<uint8_t>(constrain(requestedBrightness, 0, 255)));
+  recordMutation("/api/brightness", "brightness", beforeBrightness, beforeMode);
   sendJsonOk("Brightness updated", buildStateJson());
 }
 
@@ -1088,7 +1122,10 @@ void handleApiColor() {
     b = static_cast<uint8_t>(constrain(blue, 0, 255));
   }
 
+  uint8_t beforeBrightness = settings.masterBrightness;
+  Mode beforeMode = settings.mode;
   setActiveColor(r, g, b);
+  recordMutation("/api/color", "color", beforeBrightness, beforeMode);
   sendJsonOk("Color updated", buildStateJson());
 }
 
@@ -1109,7 +1146,10 @@ void handleApiTemperature() {
     return;
   }
 
+  uint8_t beforeBrightness = settings.masterBrightness;
+  Mode beforeMode = settings.mode;
   setWhiteTemperature(static_cast<uint16_t>(constrain(requestedKelvin, 2700, 6500)));
+  recordMutation("/api/temperature", "temperature", beforeBrightness, beforeMode);
   sendJsonOk("Temperature updated", buildStateJson());
 }
 
@@ -1131,11 +1171,14 @@ void handleApiMode() {
   }
 
   String error;
+  uint8_t beforeBrightness = settings.masterBrightness;
+  Mode beforeMode = settings.mode;
   if (!setModeByName(requestedMode, error)) {
     sendJsonError(400, error);
     return;
   }
   beginTransitionToCurrentState();
+  recordMutation("/api/mode", requestedMode.c_str(), beforeBrightness, beforeMode);
   sendJsonOk("Mode updated", buildStateJson());
 }
 

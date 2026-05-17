@@ -74,3 +74,19 @@ Stay on the D1 mini for this completed build because it still compiles, uploads,
 - Latest compile resources: RAM 60,312 / 80,192 bytes (75%); IRAM 61,383 / 65,536 bytes (93%); Flash/IROM 605,676 / 1,048,576 bytes (57%).
 - Python tests: `python -m unittest discover -s tests -v` passed, 130 tests.
 - Physical LED visual smoothing and OTA firmware upload were not retested by Codex in this pass.
+
+## Critical Runtime Regression Stabilization Pass
+
+- Found live `/api/state` JSON corruption in the previous build: `activePaletteName` emitted an extra quote before `hex`.
+- Fixed the state JSON builder so refresh can hydrate real controller state instead of leaving controls at HTML defaults.
+- Added Web UI hydration and `stateLoaded` guards so page load and `applyState(...)` assignments cannot send mutation endpoints.
+- Added a small fixed-buffer mutation audit exposed through diagnostics/resources for the last route/action and before/after brightness/mode.
+- Fixed Satin Breathing by replacing the non-monotonic exhale helper with monotonic `easeInOut01(...)`.
+- Kept temporal smoothing but reset its buffer on major lighting changes, Off, and Warm Dim Now.
+- Firmware compile after this pass: passed for `esp8266:esp8266:d1_mini`.
+- Latest compile resources: RAM 60,664 / 80,192 bytes (75%); IRAM 61,383 / 65,536 bytes (93%); Flash/IROM 609,228 / 1,048,576 bytes (58%).
+- Python tests: `python -m unittest discover -s tests -v` passed, 136 tests.
+- Live pre-fix checks found timer inactive, no schedules saved, Night Guard disabled, Night Guard cap 80, and tight heap. The random-off root cause is not fully proven until the patched firmware is uploaded and observed.
+- USB upload on `COM5` was attempted but blocked by `PermissionError(13, 'Access is denied.')`; patched firmware was not uploaded by Codex.
+- OTA upload was not performed in this pass.
+- Physical LED visual behavior was not independently observed by Codex in this pass.

@@ -41,6 +41,22 @@ Smoothing is bypassed for:
 
 Warm Dim Now and Panic Warm remain immediate because they land on solid-style output and do not pass through ambient animation smoothing.
 
+## Critical regression stabilization update
+
+Satin Breathing had a real envelope bug in the previous build: the exhale used `sineEase8(...)`, which is a full sine-shaped curve over the interval rather than a monotonic ramp. That could produce a smooth inhale/exhale followed by a sudden brightness jump or drop near the phase wrap.
+
+Fix:
+
+- Added monotonic `easeInOut01(...)`.
+- Reworked Satin Breathing to use smooth inhale, a short peak hold, and monotonic exhale.
+- Preserved the fabric texture, warm peak blending, and palette sampling.
+
+Central smoothing was kept but stabilized:
+
+- `resetTemporalSmoothing()` clears the smoothing buffer on major lighting state changes.
+- Mode, brightness, color, and white-temperature changes reset smoothing so old frames cannot make the strip look stuck or slow to recover.
+- Off and Warm Dim Now reset smoothing before applying their target states.
+
 ## Visual quality preservation
 
 No layered waves, shimmer, palette blending, Gaussian falloffs, ribbon logic, or weather/nature/evening renderer math was removed. The changes are suspension tuning around frame-to-frame deltas, not a renderer rewrite.
@@ -52,7 +68,8 @@ The code compiles after verification, but Codex did not visually observe the rea
 ## Resource status
 
 - Static RAM impact: one extra 140 LED RGB buffer, approximately 420 bytes. Compile RAM globals/statics rose from the previous 59,896 bytes to 60,312 bytes.
-- Compile resources: RAM 60,312 / 80,192 bytes (75%); IRAM 61,383 / 65,536 bytes (93%); Flash/IROM 605,676 / 1,048,576 bytes (57%).
-- Python contract tests: passed, 130 tests.
+- Compile resources after regression stabilization: RAM 60,664 / 80,192 bytes (75%); IRAM 61,383 / 65,536 bytes (93%); Flash/IROM 609,228 / 1,048,576 bytes (58%).
+- Python contract tests: passed, 136 tests.
 - Runtime heap impact: not remeasured in this pass.
+- USB upload after the regression fix was attempted but blocked by COM5 access denied.
 - OTA behavior: not retested in this pass.

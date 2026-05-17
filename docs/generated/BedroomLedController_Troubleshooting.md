@@ -19,6 +19,20 @@ The LED data pin is configured as D3 / GPIO0. On ESP8266 boards, GPIO0 affects b
 - Open the browser console and look for `API request failed` entries with URL, status code, raw response preview, and timestamp.
 - Check `/api/resources` after repeated failures; low max free block or high fragmentation can make large JSON routes unreliable.
 
+## Page refresh shows defaults or wrong controls
+
+- Page refresh should be read-only. The Web UI now blocks mutation sends while hydrating and until `/api/state` has loaded.
+- If state cannot be parsed or loaded, the UI shows `State unavailable - controls preserved` instead of treating HTML defaults as real controller state.
+- Check `/api/state` directly. If it fails to parse, fix that before trusting the visible controls.
+- Check `/api/diagnostics` or `/api/resources` for `lastMutationRoute`, `lastMutationAction`, and before/after brightness/mode fields.
+
+## Lights turn off unexpectedly
+
+- Immediately read `/api/state`, `/api/timer`, `/api/schedule`, `/api/diagnostics`, and `/api/resources`.
+- If `lastMutationRoute` points to `/api/action`, `/api/favorites/load`, `/api/scenes/load`, `/api/timer/start`, or `/api/bedtime/start`, that route is the first suspect.
+- If timer is inactive, schedules are empty, Night Guard is disabled, and brightness/color are zero, look for the last mutation audit and reset reason.
+- If uptime is very short or reset reason changed, inspect power stability, common ground, and heap pressure before assuming a scheduler or mode bug.
+
 ## Scenes or palettes will not save
 
 - Check the reported count against the max count.

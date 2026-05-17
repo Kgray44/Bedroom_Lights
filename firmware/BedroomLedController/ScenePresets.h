@@ -849,11 +849,14 @@ void handleApiScenesLoad() {
 
   String error;
   String id = server.arg("id");
+  uint8_t beforeBrightness = settings.masterBrightness;
+  Mode beforeMode = settings.mode;
   if (!loadSceneById(id, error)) {
     sendJsonError(404, error);
     return;
   }
 
+  recordMutation("/api/scenes/load", id.c_str(), beforeBrightness, beforeMode);
   sendJsonOk("Scene loaded", buildStateJson());
 }
 

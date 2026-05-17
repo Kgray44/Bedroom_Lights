@@ -399,6 +399,7 @@ String buildNightGuardJson() {
 bool runWarmDimNow() {
   diagnosticTest.active = false;
   diagnosticTest.name = "";
+  resetTemporalSmoothing();
   setModeByName("solid");
   setWhiteTemperature(2700);
   setMasterBrightness(WARM_DIM_BRIGHTNESS);
@@ -412,6 +413,7 @@ bool runWarmDimNow() {
 bool runOffAction() {
   diagnosticTest.active = false;
   diagnosticTest.name = "";
+  resetTemporalSmoothing();
   setModeByName("solid");
   setActiveColor(0, 0, 0);
   setMasterBrightness(0);
@@ -502,11 +504,15 @@ void handleApiFavoritesLoad() {
   }
 
   String error;
-  if (!loadFavoriteById(server.arg("id"), error)) {
+  uint8_t beforeBrightness = settings.masterBrightness;
+  Mode beforeMode = settings.mode;
+  String id = server.arg("id");
+  if (!loadFavoriteById(id, error)) {
     sendJsonError(404, error);
     return;
   }
 
+  recordMutation("/api/favorites/load", id.c_str(), beforeBrightness, beforeMode);
   sendFavoriteActionOk("Favorite loaded");
 }
 
@@ -523,21 +529,28 @@ void handleApiAction() {
   }
 
   String error;
-  if (!runActionByName(server.arg("name"), error)) {
+  uint8_t beforeBrightness = settings.masterBrightness;
+  Mode beforeMode = settings.mode;
+  String action = server.arg("name");
+  if (!runActionByName(action, error)) {
     sendJsonError(400, error);
     return;
   }
 
+  recordMutation("/api/action", action.c_str(), beforeBrightness, beforeMode);
   sendJsonOk("Action completed", buildStateJson());
 }
 
 void handleApiPanicWarm() {
   String error;
+  uint8_t beforeBrightness = settings.masterBrightness;
+  Mode beforeMode = settings.mode;
   if (!runActionByName("panicWarm", error)) {
     sendJsonError(400, error);
     return;
   }
 
+  recordMutation("/api/panic-warm", "panicWarm", beforeBrightness, beforeMode);
   sendJsonOk("Warm Dim Now", buildStateJson());
 }
 
@@ -546,6 +559,9 @@ void handleApiNightGuard() {
 }
 
 void handleApiNightGuardSet() {
+  uint8_t beforeBrightness = settings.masterBrightness;
+  Mode beforeMode = settings.mode;
+
   if (server.hasArg("enabled")) {
     bool enabled;
     if (!parseRequestBool(server.arg("enabled"), enabled)) {
@@ -582,6 +598,7 @@ void handleApiNightGuardSet() {
     setNightGuardPreferWarmTemperature(preferWarm);
   }
 
+  recordMutation("/api/nightguard/set", "nightGuard", beforeBrightness, beforeMode);
   String json;
   json.reserve(420);
   json += F("{\"ok\":true,\"message\":\"Night Guard updated\",\"nightGuard\":");

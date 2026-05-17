@@ -524,6 +524,48 @@ Verification status:
 - Physical LED visual smoothness: not visually retested by Codex.
 - OTA firmware upload: not performed.
 
+## Critical Runtime Regression Stabilization
+
+Main fixes:
+
+- Investigated live controller behavior before changing persistence code.
+- Found malformed `/api/state` JSON in the previous build: `activePaletteName` emitted an extra quote before `hex`.
+- Fixed `buildStateJson()` so the Web UI can parse and hydrate real controller state.
+- Added `uiHydrating` and `stateLoaded` guards so browser refresh and `applyState(...)` cannot send mutation requests.
+- Added state-unavailable UI handling that preserves current controls instead of presenting defaults as real state.
+- Added fixed-buffer last-mutation audit fields for route, action, before/after mode, and before/after brightness.
+- Exposed mutation audit fields through diagnostics/resources/state for future random-off tracing.
+- Fixed Satin Breathing's non-monotonic exhale by adding `easeInOut01(...)`.
+- Kept fabric texture, warm peak blending, and palette support.
+- Reset temporal smoothing on mode, brightness, color, white-temperature, Off, and Warm Dim Now changes.
+- Kept smoothing bypasses for Solid/off-style output, Strobe, Flash, diagnostics, transitions, and utility/flashing modes.
+
+Generated documentation:
+
+- `docs/generated/BedroomLedController_Critical_Runtime_Regression_Report.md`
+- `docs/generated/BedroomLedController_Live_UI_Feedback_Report.md`
+- `docs/generated/BedroomLedController_Motion_Smoothness_Report.md`
+- `docs/generated/BedroomLedController_Final_Report.md`
+- `docs/generated/BedroomLedController_Resource_And_Migration_Report.md`
+- `docs/generated/BedroomLedController_Troubleshooting.md`
+- `docs/generated/Phase_Completion.md`
+
+Verification status:
+
+- Live pre-fix reads reached `http://bedroom-leds.local` at `192.168.1.201`.
+- Live pre-fix timer check: inactive.
+- Live pre-fix schedule check: no schedules saved.
+- Live pre-fix Night Guard: disabled, cap 80.
+- Live pre-fix mutation/persistence sequence: did not complete because requests timed out and the board showed instability/short uptime afterward.
+- Worktree firmware compile for `esp8266:esp8266:d1_mini`: passed.
+- Arduino sketch folder compile for `esp8266:esp8266:d1_mini`: passed.
+- `python -m unittest discover -s tests -v`: passed, 136 tests.
+- `node --check` on extracted Web UI script: passed.
+- resource report: RAM 60,664 / 80,192 bytes (75%); IRAM 61,383 / 65,536 bytes (93%); flash 609,228 / 1,048,576 bytes (58%).
+- USB upload on `COM5`: attempted but blocked by access denied, so patched live API/persistence checks were not completed.
+- Physical LED visual behavior: not claimed unless separately observed after upload.
+- OTA firmware upload: not performed.
+
 ## Phase 4C - Remaining Mode Library Batch 2
 
 Main additions:

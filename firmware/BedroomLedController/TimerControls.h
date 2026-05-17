@@ -431,6 +431,9 @@ void handleApiTimer() {
 }
 
 void handleApiTimerStart() {
+  uint8_t beforeBrightness = settings.masterBrightness;
+  Mode beforeMode = settings.mode;
+
   uint16_t minutes;
   if (!parseTimerMinutes(minutes, String(TIMER_DEFAULT_MINUTES))) {
     sendJsonError(400, "Invalid timer minutes");
@@ -460,6 +463,8 @@ void handleApiTimerStart() {
     return;
   }
 
+  String actionKey = timerActionKey(action);
+  recordMutation("/api/timer/start", actionKey.c_str(), beforeBrightness, beforeMode);
   String json;
   json.reserve(760);
   json += F("{\"ok\":true,\"message\":\"Timer started\",\"timer\":");
@@ -471,8 +476,13 @@ void handleApiTimerStart() {
 }
 
 void handleApiTimerCancel() {
+  uint8_t beforeBrightness = settings.masterBrightness;
+  Mode beforeMode = settings.mode;
   String message;
   bool ok = cancelActiveTimer(message);
+  if (ok) {
+    recordMutation("/api/timer/cancel", "cancel", beforeBrightness, beforeMode);
+  }
   String json;
   json.reserve(520);
   json += F("{\"ok\":");
@@ -488,6 +498,9 @@ void handleApiTimerCancel() {
 }
 
 void handleApiBedtimeStart() {
+  uint8_t beforeBrightness = settings.masterBrightness;
+  Mode beforeMode = settings.mode;
+
   uint16_t minutes;
   if (!parseTimerMinutes(minutes, String(settings.bedtimeFadeDefaultMinutes))) {
     sendJsonError(400, "Invalid timer minutes");
@@ -515,6 +528,8 @@ void handleApiBedtimeStart() {
     markSettingsDirty();
   }
 
+  String actionKey = timerActionKey(action);
+  recordMutation("/api/bedtime/start", actionKey.c_str(), beforeBrightness, beforeMode);
   String json;
   json.reserve(780);
   json += F("{\"ok\":true,\"message\":\"Bedtime fade started\",\"timer\":");

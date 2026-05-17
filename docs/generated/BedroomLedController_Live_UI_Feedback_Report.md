@@ -36,10 +36,23 @@ This pass makes the ESP8266-hosted web UI more honest and less aggressive with A
 
 The page no longer fires the full startup API set concurrently. Heavy list and diagnostics-style requests are queued one at a time on the browser side, while lightweight control actions still apply returned state without refreshing every list.
 
+## Critical regression stabilization update
+
+Live testing of the previous build found that `/api/state` returned invalid JSON because `activePaletteName` emitted an extra quote before the `hex` field. That could make page refresh look like it reset controls to defaults because the UI could not hydrate real controller state.
+
+Additional stabilization added after that finding:
+
+- `uiHydrating` now stays true during startup and while `applyState(...)` programmatically assigns input values.
+- `stateLoaded` is set only after a successful state payload is applied.
+- Mutation paths call `canMutateFromUi(...)` so startup, failed state loading, and programmatic state application do not send `/set`, action, timer, scene, palette, or Night Guard writes.
+- If state is unavailable, the UI reports `State unavailable - controls preserved` instead of overwriting visible controls with defaults.
+
+Page refresh mutation check: statically guarded in code; browser Network-tab verification on the patched firmware is still pending.
+
 ## Verification status
 
-- Firmware compile: passed for `esp8266:esp8266:d1_mini`.
-- Compile resources: RAM 60,312 / 80,192 bytes (75%); IRAM 61,383 / 65,536 bytes (93%); Flash/IROM 605,676 / 1,048,576 bytes (57%).
-- Python contract tests: passed, 130 tests.
-- Browser/live hardware behavior: not retested on the physical D1 mini in this pass.
+- Firmware compile after regression stabilization: passed for `esp8266:esp8266:d1_mini`.
+- Compile resources after regression stabilization: RAM 60,664 / 80,192 bytes (75%); IRAM 61,383 / 65,536 bytes (93%); Flash/IROM 609,228 / 1,048,576 bytes (58%).
+- Python contract tests: passed, 136 tests.
+- Browser/live patched behavior: not retested because USB upload to `COM5` was blocked by `PermissionError(13, 'Access is denied.')`.
 - Runtime heap impact: not remeasured in this pass.

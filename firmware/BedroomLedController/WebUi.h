@@ -972,6 +972,8 @@ let heavyRequestQueue = Promise.resolve();
 let heavyRequestActive = false;
 let heavyRequestQueued = false;
 let nightGuardDebounceTimer = null;
+let uiHydrating = true;
+let stateLoaded = false;
 
 const HEAVY_ENDPOINTS = [
   '/api/scenes',
@@ -1163,6 +1165,19 @@ function renderUnavailableSection(containerId, message, retrySection) {
       <button class="inline-retry" type="button" data-retry-section="${retrySection}">Retry</button>
     </div>
   `;
+}
+
+function canMutateFromUi(action = 'update') {
+  if (uiHydrating) {
+    console.warn('Blocked UI mutation during hydration', { action });
+    return false;
+  }
+  if (!stateLoaded) {
+    showGlobalStatus('State unavailable - controls preserved', 'error');
+    console.warn('Blocked UI mutation before state loaded', { action });
+    return false;
+  }
+  return true;
 }
 
 function setControlsDisabled(ids, disabled) {
@@ -1875,6 +1890,9 @@ function drawPreview(timestamp) {
 }
 
 async function send(params) {
+  if (!canMutateFromUi('set')) {
+    return false;
+  }
   const [pendingMessage, successMessage] = messageForParams(params);
   showGlobalStatus(pendingMessage, 'pending');
   const result = await apiFetchJson(`/set?${qs(params)}`, {
@@ -1894,6 +1912,9 @@ async function send(params) {
 }
 
 function sendSoon(params) {
+  if (!canMutateFromUi('set soon')) {
+    return;
+  }
   clearTimeout(debounceTimer);
   const [pendingMessage] = messageForParams(params);
   showGlobalStatus(pendingMessage, 'pending');
@@ -2048,6 +2069,9 @@ function updateTransitionControls(state) {
 }
 
 async function saveTransitionControls() {
+  if (!canMutateFromUi('transition settings')) {
+    return false;
+  }
   showGlobalStatus('Saving transition settings...', 'pending');
   const result = await apiFetchJson(`/api/transitions/set?${qs({
     enabled: $('transitionsEnabled').checked ? 1 : 0,
@@ -2167,6 +2191,9 @@ async function refreshPalettesSafe(options = {}) {
 }
 
 async function selectPalette(id, enabled = $('paletteEnabled').checked) {
+  if (!canMutateFromUi('palette selection')) {
+    return false;
+  }
   showGlobalStatus('Selecting palette...', 'pending');
   const result = await apiFetchJson(`/api/palettes/select?${qs({ id, enabled: enabled ? 1 : 0 })}`, {
     label: 'Palette selection',
@@ -2206,6 +2233,9 @@ function editPalette(id) {
 }
 
 async function savePaletteFromForm() {
+  if (!canMutateFromUi('palette save')) {
+    return false;
+  }
   const params = {
     name: $('paletteName').value.trim(),
     c1: $('paletteColor1').value,
@@ -2243,6 +2273,9 @@ async function savePaletteFromForm() {
 }
 
 async function deletePalette(id) {
+  if (!canMutateFromUi('palette delete')) {
+    return false;
+  }
   showGlobalStatus('Deleting palette...', 'pending');
   const result = await apiFetchJson(`/api/palettes/delete?${qs({ id })}`, {
     label: 'Palette delete',
@@ -2265,6 +2298,9 @@ async function deletePalette(id) {
 }
 
 async function resetPalettes() {
+  if (!canMutateFromUi('palette reset')) {
+    return false;
+  }
   showGlobalStatus('Resetting palettes...', 'pending');
   const result = await apiFetchJson('/api/palettes/reset', {
     label: 'Palette reset',
@@ -2323,42 +2359,49 @@ function updateNightGuardControls(state) {
 }
 
 function applyState(state) {
-  lastState = state;
-  previewState = state;
-  $('status').textContent = `${state.hostname} - ${state.ip} - ${state.mode}`;
-  $('mode').value = state.mode;
-  $('bootBehavior').value = state.bootBehavior || 'restore';
-  $('masterBrightness').value = state.masterBrightness;
-  updateBrightnessReadout(state.masterBrightness, state.masterBrightnessPercent);
-  $('gammaEnabled').checked = !!state.gammaEnabled;
-  $('redGain').value = state.redGain;
-  $('greenGain').value = state.greenGain;
-  $('blueGain').value = state.blueGain;
-  $('kelvin').value = state.kelvin;
-  $('kelvinText').textContent = state.kelvin;
-  const hex = `#${state.hex}`;
-  $('colorPicker').value = hex;
-  $('swatch').style.background = hex;
-  $('strobeDelay').value = Number(state.strobeDelay).toFixed(1);
-  $('flashOffDelay').value = Number(state.flashOffDelay).toFixed(1);
-  $('chasePeriod').value = String(state.chasePeriod);
-  $('wavePeriod').value = String(state.wavePeriod);
-  $('slowPulseCount').value = String(state.slowPulseCount);
-  $('slowPulseMax').value = String(state.slowPulseMax);
-  $('rainbowPeriod').value = String(state.rainbowPeriod);
-  $('bedtimeMinutes').value = String(state.bedtimeFadeDefaultMinutes || 30);
-  $('bedtimeTarget').value = state.bedtimeFadeDefaultTarget || 'warmDim';
-  renderCurrentSummary(state);
-  updateTransitionControls(state);
-  updateNightGuardControls(state);
-  renderSelectedModeMetadata(state);
-  updatePaletteControls(state);
-  renderTimerStatus(state);
-  updatePreviewLabels(state);
-  if (state.lastSurpriseSummary && state.lastSurpriseSummary !== 'none') {
-    $('surpriseSummary').textContent = state.lastSurpriseSummary;
+  const wasHydrating = uiHydrating;
+  uiHydrating = true;
+  try {
+    lastState = state;
+    previewState = state;
+    $('status').textContent = `${state.hostname} - ${state.ip} - ${state.mode}`;
+    $('mode').value = state.mode;
+    $('bootBehavior').value = state.bootBehavior || 'restore';
+    $('masterBrightness').value = state.masterBrightness;
+    updateBrightnessReadout(state.masterBrightness, state.masterBrightnessPercent);
+    $('gammaEnabled').checked = !!state.gammaEnabled;
+    $('redGain').value = state.redGain;
+    $('greenGain').value = state.greenGain;
+    $('blueGain').value = state.blueGain;
+    $('kelvin').value = state.kelvin;
+    $('kelvinText').textContent = state.kelvin;
+    const hex = `#${state.hex}`;
+    $('colorPicker').value = hex;
+    $('swatch').style.background = hex;
+    $('strobeDelay').value = Number(state.strobeDelay).toFixed(1);
+    $('flashOffDelay').value = Number(state.flashOffDelay).toFixed(1);
+    $('chasePeriod').value = String(state.chasePeriod);
+    $('wavePeriod').value = String(state.wavePeriod);
+    $('slowPulseCount').value = String(state.slowPulseCount);
+    $('slowPulseMax').value = String(state.slowPulseMax);
+    $('rainbowPeriod').value = String(state.rainbowPeriod);
+    $('bedtimeMinutes').value = String(state.bedtimeFadeDefaultMinutes || 30);
+    $('bedtimeTarget').value = state.bedtimeFadeDefaultTarget || 'warmDim';
+    renderCurrentSummary(state);
+    updateTransitionControls(state);
+    updateNightGuardControls(state);
+    renderSelectedModeMetadata(state);
+    updatePaletteControls(state);
+    renderTimerStatus(state);
+    updatePreviewLabels(state);
+    if (state.lastSurpriseSummary && state.lastSurpriseSummary !== 'none') {
+      $('surpriseSummary').textContent = state.lastSurpriseSummary;
+    }
+    updateVisibleControls();
+    stateLoaded = true;
+  } finally {
+    uiHydrating = wasHydrating;
   }
-  updateVisibleControls();
 }
 
 function escapeHtml(value) {
@@ -2484,6 +2527,9 @@ function populateTimerScenes() {
 }
 
 async function startTimerFromControls() {
+  if (!canMutateFromUi('timer start')) {
+    return false;
+  }
   const params = {
     minutes: $('timerDuration').value,
     mode: $('timerMode').value,
@@ -2519,6 +2565,9 @@ async function startTimerFromControls() {
 }
 
 async function cancelTimer() {
+  if (!canMutateFromUi('timer cancel')) {
+    return false;
+  }
   showGlobalStatus('Cancelling timer...', 'pending');
   setControlsDisabled(['cancelTimer', 'cancelBedtimeFade'], true);
   const result = await apiFetchJson('/api/timer/cancel', {
@@ -2549,6 +2598,9 @@ async function cancelTimer() {
 }
 
 async function startBedtimeFade() {
+  if (!canMutateFromUi('bedtime fade')) {
+    return false;
+  }
   showGlobalStatus('Starting bedtime fade...', 'pending');
   setControlsDisabled(['startBedtimeFade'], true);
   const result = await apiFetchJson(`/api/bedtime/start?${qs({
@@ -2592,7 +2644,9 @@ async function refreshStateSafe(options = {}) {
   });
   if (!result.ok) {
     if (!lastState) {
-      $('status').textContent = 'Open the D1 mini IP address again';
+      stateLoaded = false;
+      $('status').textContent = 'State unavailable - controls preserved';
+      showGlobalStatus('State unavailable - controls preserved', 'error');
     }
     if (lastState) {
       refreshPreviewFromCachedState();
@@ -2663,6 +2717,9 @@ async function handleFavoritePayload(result, successMessage, options = {}) {
 }
 
 async function runAction(name) {
+  if (!canMutateFromUi('action')) {
+    return false;
+  }
   const message = name === 'warmDimNow' ? 'Warm Dim Now' : 'Action completed';
   showGlobalStatus(name === 'warmDimNow' ? 'Applying Warm Dim Now...' : 'Running action...', 'pending');
   const result = await apiFetchJson(`/api/action?${qs({ name })}`, {
@@ -2674,6 +2731,9 @@ async function runAction(name) {
 }
 
 async function updateNightGuardFromControls() {
+  if (!canMutateFromUi('night guard')) {
+    return false;
+  }
   const previousState = lastState;
   showGlobalStatus('Updating Night Guard...', 'pending');
   setControlsDisabled(['nightGuardEnabled', 'nightGuardMaxBrightness', 'nightGuardBlockFlashing', 'nightGuardPreferWarm'], true);
@@ -2708,6 +2768,9 @@ async function updateNightGuardFromControls() {
 }
 
 function debouncedNightGuardUpdate() {
+  if (!canMutateFromUi('night guard')) {
+    return;
+  }
   clearTimeout(nightGuardDebounceTimer);
   $('nightGuardNote').textContent = 'Updating Night Guard...';
   nightGuardDebounceTimer = setTimeout(() => updateNightGuardFromControls().catch(console.error), 220);
@@ -2762,6 +2825,9 @@ async function refreshScenes() {
 }
 
 async function callScene(url, successMessage, refreshLighting = false) {
+  if (!canMutateFromUi('scene action')) {
+    return false;
+  }
   const result = await apiFetchJson(url, {
     label: successMessage || 'Scene action',
     timeoutMs: 5500,
@@ -2807,6 +2873,9 @@ async function handleScenePayload(result, successMessage, refreshLighting = fals
 }
 
 async function runSurprise() {
+  if (!canMutateFromUi('surprise')) {
+    return false;
+  }
   const mood = $('surpriseMood').value;
   const releaseButton = setButtonBusy('surpriseButton', true, 'Choosing...');
   $('surpriseSummary').textContent = 'Choosing a safe surprise...';
@@ -2901,6 +2970,9 @@ $('panicWarm').addEventListener('click', () => {
 });
 
 $('resetFavorites').addEventListener('click', () => {
+  if (!canMutateFromUi('favorites reset')) {
+    return;
+  }
   showGlobalStatus('Resetting favorites...', 'pending');
   apiFetchJson('/api/favorites/reset', {
     label: 'Favorites reset',
@@ -2929,6 +3001,9 @@ $('exportFullBackup').addEventListener('click', async () => {
 });
 
 $('importFullBackup').addEventListener('click', async () => {
+  if (!canMutateFromUi('backup import')) {
+    return;
+  }
   const json = $('backupExportJson').value.trim();
   if (!json) {
     showBackupMessage('Backup JSON is required', true);
@@ -2951,6 +3026,9 @@ $('importFullBackup').addEventListener('click', async () => {
 });
 
 $('factoryReset').addEventListener('click', async () => {
+  if (!canMutateFromUi('factory reset')) {
+    return;
+  }
   const confirmText = window.prompt('Type YES to factory reset');
   if (confirmText !== 'YES') {
     return;
@@ -3025,6 +3103,9 @@ $('paletteList').addEventListener('click', (event) => {
 $('favoriteBar').addEventListener('click', (event) => {
   const favoriteId = event.target.closest('button')?.dataset.favoriteLoad;
   if (!favoriteId) {
+    return;
+  }
+  if (!canMutateFromUi('favorite load')) {
     return;
   }
   showGlobalStatus('Loading favorite...', 'pending');
@@ -3149,22 +3230,27 @@ document.addEventListener('click', (event) => {
 });
 
 async function bootUi() {
-  showGlobalStatus('Connecting...', 'pending');
+  uiHydrating = true;
+  try {
+    showGlobalStatus('Connecting...', 'pending');
 
-  await refreshStateSafe({ showStatus: true });
-  await delay(100);
-  await refreshModesSafe({ showStatus: false });
-  await delay(100);
-  await refreshFavoritesSafe();
-  await delay(100);
-  await refreshScenesSafe();
-  await delay(100);
-  await refreshPalettesSafe();
-  await delay(100);
-  await refreshTimerSafe();
+    await refreshStateSafe({ showStatus: true });
+    await delay(100);
+    await refreshModesSafe({ showStatus: false });
+    await delay(100);
+    await refreshFavoritesSafe();
+    await delay(100);
+    await refreshScenesSafe();
+    await delay(100);
+    await refreshPalettesSafe();
+    await delay(100);
+    await refreshTimerSafe();
 
-  refreshPreviewFromCachedState();
-  showGlobalStatus('Connected', 'success');
+    refreshPreviewFromCachedState();
+    showGlobalStatus(stateLoaded ? 'Connected' : 'State unavailable - controls preserved', stateLoaded ? 'success' : 'error');
+  } finally {
+    uiHydrating = false;
+  }
 }
 
 requestAnimationFrame(drawPreview);

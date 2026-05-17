@@ -87,6 +87,7 @@ String lastScheduleStatus = "none";
 TimeSyncState timeSync;
 EndpointHeapMetric endpointHeapMetrics[MAX_ENDPOINT_HEAP_METRICS];
 uint8_t endpointHeapMetricCount = 0;
+MutationAudit lastMutation;
 uint32_t minFreeHeapSeen = 0;
 uint32_t resourceStatsLastSampleMs = 0;
 uint32_t schedulerLastCheckMs = 0;

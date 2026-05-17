@@ -105,3 +105,20 @@ This focused pass reduced browser-side API pressure and added central temporal s
 - Runtime heap after this UI/motion pass: not measured.
 - Physical LED visual smoothness: not visually retested by Codex.
 - OTA firmware upload after this pass: not performed.
+
+## Critical runtime regression stabilization
+
+Live checks against the previous build on `http://bedroom-leds.local` found:
+
+- `/api/state` emitted invalid JSON due to an extra quote after `activePaletteName`.
+- `/api/diagnostics` reported live state as off: `mode=solid`, `hex=000000`, `masterBrightness=0`, `effectiveBrightness=0`.
+- Timer was inactive and schedules were empty.
+- Night Guard was disabled, with `nightGuardMaxBrightness=80`.
+- Heap was tight before the fix: one diagnostics read reported free heap around 5,688 bytes, max free block around 1,304 bytes, fragmentation around 25%, and min free heap since boot around 2,672 bytes.
+- The requested pre-fix brightness/color/mode mutation sequence timed out and was followed by a short-uptime controller reading, so the old build showed instability under live API pressure.
+
+The stabilization pass fixed the malformed state JSON, added UI hydration/mutation guards, added fixed-buffer mutation audit fields, reset temporal smoothing on major state changes, and corrected Satin Breathing's non-monotonic envelope.
+
+Post-fix compile resources: RAM 60,664 / 80,192 bytes (75%); IRAM 61,383 / 65,536 bytes (93%); Flash/IROM 609,228 / 1,048,576 bytes (58%).
+
+Post-fix runtime heap, post-fix persistence, browser refresh Network-tab mutation proof, and physical LED visual behavior still need measurement after USB upload. USB upload was attempted on `COM5` but blocked by `PermissionError(13, 'Access is denied.')`.

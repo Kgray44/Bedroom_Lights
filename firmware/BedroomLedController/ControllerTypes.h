@@ -145,6 +145,16 @@ struct EndpointHeapMetric {
   uint32_t payloadBytes;
 };
 
+struct MutationAudit {
+  char route[40];
+  char action[32];
+  char beforeMode[24];
+  char afterMode[24];
+  uint32_t atMs;
+  uint8_t beforeBrightness;
+  uint8_t afterBrightness;
+};
+
 struct PowerEstimate {
   uint32_t maxLedCurrentMilliamps;
   uint32_t maxLedPowerMilliwatts;
