@@ -196,6 +196,76 @@ uint8_t hash8(uint16_t x) {
   return static_cast<uint8_t>(x & 0xFF);
 }
 
+uint8_t smoothHash8(uint16_t seed, uint32_t now, uint16_t periodMs) {
+  if (periodMs == 0) {
+    return hash8(seed);
+  }
+  uint32_t bucket = now / periodMs;
+  uint8_t progress = static_cast<uint8_t>(((now % periodMs) * 255UL) / periodMs);
+  uint8_t eased = smoothStep8(progress);
+  uint8_t a = hash8(seed + static_cast<uint16_t>(bucket & 0xFFFF));
+  uint8_t b = hash8(seed + static_cast<uint16_t>((bucket + 1UL) & 0xFFFF));
+  return lerp8(a, b, eased);
+}
+
+uint8_t approach8(uint8_t current, uint8_t target, uint8_t maxStep) {
+  if (maxStep == 0 || current == target) {
+    return target;
+  }
+  if (current < target) {
+    uint16_t next = static_cast<uint16_t>(current) + maxStep;
+    return next > target ? target : static_cast<uint8_t>(next);
+  }
+  int16_t next = static_cast<int16_t>(current) - maxStep;
+  return next < target ? target : static_cast<uint8_t>(next);
+}
+
+bool shouldApplyTemporalSmoothing(Mode mode) {
+  if (!ENABLE_MOTION_SMOOTHING || diagnosticTest.active || transitionState.active) {
+    return false;
+  }
+  if (mode == MODE_SOLID || mode == MODE_STROBE || mode == MODE_FLASH) {
+    return false;
+  }
+  const ModeMetadata* metadata = findModeMetadata(mode);
+  if (metadata != nullptr && (metadata->flashing || metadata->utility)) {
+    return false;
+  }
+  return true;
+}
+
+uint8_t smoothingStepForMode(Mode mode) {
+  const ModeMetadata* metadata = findModeMetadata(mode);
+  if (metadata == nullptr) {
+    return DEFAULT_MOTION_SMOOTHING;
+  }
+  if (metadata->sleepSafe || metadata->calm) {
+    return DEFAULT_CALM_SMOOTHING;
+  }
+  if (metadata->category != nullptr && strcmp(metadata->category, "Weather") == 0) {
+    return DEFAULT_WEATHER_SMOOTHING;
+  }
+  if (metadata->colorful) {
+    return DEFAULT_COLORFUL_SMOOTHING;
+  }
+  return DEFAULT_MOTION_SMOOTHING;
+}
+
+void applyTemporalSmoothingToFrame() {
+  uint8_t step = smoothingStepForMode(settings.mode);
+  if (!smoothedFrameInitialized) {
+    copyFrame(frameBuffer, smoothedFrame);
+    smoothedFrameInitialized = true;
+    return;
+  }
+  for (uint16_t i = 0; i < LED_COUNT; i++) {
+    smoothedFrame[i].r = approach8(smoothedFrame[i].r, frameBuffer[i].r, step);
+    smoothedFrame[i].g = approach8(smoothedFrame[i].g, frameBuffer[i].g, step);
+    smoothedFrame[i].b = approach8(smoothedFrame[i].b, frameBuffer[i].b, step);
+    frameBuffer[i] = smoothedFrame[i];
+  }
+}
+
 void setFramePixelRgb(uint16_t index, RgbPixel color) {
   setFramePixel(index, color.r, color.g, color.b);
 }
@@ -264,6 +334,11 @@ void updateLeds() {
     renderTransitionFrame(now);
   } else {
     renderCurrentModeToFrame(now);
+  }
+  if (shouldApplyTemporalSmoothing(settings.mode)) {
+    applyTemporalSmoothingToFrame();
+  } else {
+    smoothedFrameInitialized = false;
   }
   outputFrameToStrip();
   ledsDirty = false;
@@ -432,7 +507,7 @@ void renderSlowPulse(uint32_t now) {
       value = max(value, 40.0f + spatial * temporal * 215.0f);
     }
 
-    value += static_cast<float>((i * 37 + now / 713) % 9) * 0.41f;
+    value += (static_cast<float>(smoothHash8(i * 37U, now, 713UL)) / 255.0f) * 3.28f;
     uint8_t candidate = clampByte(value);
     if (candidate < 40) {
       candidate = 40;
@@ -581,7 +656,7 @@ void renderSatinBreathing(uint32_t now) {
   for (uint16_t i = 0; i < LED_COUNT; i++) {
     RgbPixel color = sampleActivePaletteOrColor(i, maxPosition);
     color = blendRgb(color, warmPeak, static_cast<uint8_t>(envelope * 32.0f));
-    int texture = static_cast<int>(hash8(i * 11U + now / 997UL) % 17) - 8;
+    int texture = static_cast<int>((static_cast<uint16_t>(smoothHash8(i * 11U, now, 997UL)) * 17U) / 256U) - 8;
     setFramePixelRgb(i, scaleRgb(color, clamp8(baseLevel + texture)));
   }
 }
@@ -741,7 +816,7 @@ void renderEmberQuilt(uint32_t now) {
         color = blendRgb(color, sampled, static_cast<uint8_t>(falloff * 58.0f));
       }
     }
-    uint8_t texture = hash8(i * 29U + now / 1600UL) % 11;
+    uint8_t texture = static_cast<uint8_t>((static_cast<uint16_t>(smoothHash8(i * 29U, now, 1600UL)) * 11U) / 256U);
     setFramePixelRgb(i, scaleRgb(color, clamp8(static_cast<int>(level) + texture)));
   }
 }

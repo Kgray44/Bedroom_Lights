@@ -42,13 +42,13 @@ Stay on the D1 mini for this completed build because it still compiles, uploads,
 ## Final measured compile resources
 
 - Board target: `esp8266:esp8266:d1_mini`
-- RAM globals/statics: 59,896 / 80,192 bytes (74%).
+- RAM globals/statics: 60,312 / 80,192 bytes (75%).
 - IRAM: 61,383 / 65,536 bytes (93%).
-- Flash/IROM: 588,188 / 1,048,576 bytes (56%).
+- Flash/IROM: 605,676 / 1,048,576 bytes (57%).
 - LittleFS usage: 49,152 / 2,072,576 bytes used; 2,023,424 bytes free.
 - Runtime free heap after boot/resource check: 7,768 bytes.
 - Lowest measured route-local heap floor: 2,000 bytes during `/api/scenes`.
-- Python contract tests: `python -m unittest discover -s tests -v` passed, 124 tests.
+- Python contract tests: `python -m unittest discover -s tests -v` passed, 130 tests.
 - Physical visual LED behavior: not independently observed; not measured by Codex.
 
 ## Known limits
@@ -57,3 +57,20 @@ Stay on the D1 mini for this completed build because it still compiles, uploads,
 - Runtime heap after large API calls was measured on hardware; `/api/scenes` is the tightest route.
 - OTA page reachability was tested, but OTA firmware upload was not performed.
 - Physical LED test endpoints were called, but visual LED output was not independently observed by Codex.
+
+## UI Feedback + Motion Smoothness Pass
+
+- Added a global UI status banner plus per-action pending/success/error feedback for common controls.
+- Added a central browser `apiFetchJson(...)` helper with timeout, retry, invalid JSON handling, and console diagnostics.
+- Serialized initial UI loading so the ESP8266 is not hit with state, modes, palettes, scenes, favorites, timer, and preview requests at once.
+- Added browser-side queuing for heavy endpoints and quieter preview behavior based on cached state.
+- Fixed empty-vs-unavailable messaging for favorites, scenes, and palettes, with retry buttons for failed sections.
+- Hardened Surprise Me so it cannot stay stuck on the choosing state after timeout, invalid JSON, or controller failure.
+- Hardened Night Guard UI state so successful updates refresh the visible enabled/off/capped message.
+- Added a single central temporal smoothing buffer and bounded per-channel smoothing for ambient animated modes.
+- Added interpolated hash texture for selected procedural texture terms that could step between time buckets.
+- Preserved the central output pipeline, Night Guard cap, gamma correction, RGB calibration, and mode renderer quality.
+- Firmware compile after this pass: passed for `esp8266:esp8266:d1_mini`.
+- Latest compile resources: RAM 60,312 / 80,192 bytes (75%); IRAM 61,383 / 65,536 bytes (93%); Flash/IROM 605,676 / 1,048,576 bytes (57%).
+- Python tests: `python -m unittest discover -s tests -v` passed, 130 tests.
+- Physical LED visual smoothing and OTA firmware upload were not retested by Codex in this pass.

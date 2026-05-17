@@ -63,6 +63,33 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       font-size: .88rem;
       white-space: nowrap;
     }
+    .global-status {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-height: 42px;
+      margin: 0 0 18px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255,255,255,.05);
+      color: var(--text);
+      padding: 9px 12px;
+      font-size: .92rem;
+    }
+    .global-status.pending {
+      border-color: rgba(139,208,255,.42);
+      background: rgba(139,208,255,.10);
+    }
+    .global-status.success {
+      border-color: rgba(142,232,172,.38);
+      background: rgba(142,232,172,.10);
+    }
+    .global-status.error {
+      border-color: rgba(255,154,154,.48);
+      background: rgba(255,154,154,.10);
+      color: #ffd1d1;
+    }
     .grid {
       display: grid;
       grid-template-columns: minmax(280px, 1fr) minmax(300px, 1.15fr);
@@ -165,6 +192,17 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       background: linear-gradient(135deg, var(--accent), #eef9ff);
       border: 0;
       font-weight: 720;
+    }
+    button:disabled {
+      cursor: wait;
+      opacity: .62;
+    }
+    .inline-retry {
+      width: auto;
+      min-width: 88px;
+      margin-top: 8px;
+      padding: 8px 10px;
+      min-height: 36px;
     }
     textarea {
       min-height: 112px;
@@ -515,6 +553,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
     </div>
     <div class="pill" id="status">Connecting...</div>
   </header>
+  <div class="global-status pending" id="globalStatus" role="status" aria-live="polite">Connecting...</div>
 
   <div class="grid">
     <section class="wide">
@@ -928,6 +967,20 @@ let previewState = null;
 let previewPaused = false;
 let previewLastDrawMs = 0;
 const previewReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+let globalStatusClearTimer = null;
+let heavyRequestQueue = Promise.resolve();
+let heavyRequestActive = false;
+let heavyRequestQueued = false;
+let nightGuardDebounceTimer = null;
+
+const HEAVY_ENDPOINTS = [
+  '/api/scenes',
+  '/api/palettes',
+  '/api/modes',
+  '/api/backup/export',
+  '/api/diagnostics',
+  '/api/resources'
+];
 
 const MODE_FILTERS = [
   ['all', 'All'],
@@ -964,6 +1017,189 @@ function qs(params) {
     .filter(([, value]) => value !== undefined)
     .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
     .join('&');
+}
+
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function showGlobalStatus(message, type = 'pending', autoClearMs) {
+  const target = $('globalStatus');
+  if (!target) {
+    return;
+  }
+  clearTimeout(globalStatusClearTimer);
+  target.textContent = message || '';
+  target.className = `global-status ${type}`;
+  const clearAfter = autoClearMs ?? (type === 'success' ? 3200 : 0);
+  if (clearAfter > 0) {
+    globalStatusClearTimer = setTimeout(() => {
+      if (target.textContent === message) {
+        target.textContent = lastState ? 'Connected' : '';
+        target.className = 'global-status success';
+      }
+    }, clearAfter);
+  }
+}
+
+function logApiFailure(url, statusCode, error, rawText = '') {
+  const rawTextPreview = String(rawText || '').slice(0, 200);
+  console.warn('API request failed', {
+    url,
+    statusCode,
+    error: error?.message || String(error || 'Request failed'),
+    rawTextPreview,
+    time: new Date().toISOString()
+  });
+}
+
+function endpointPath(url) {
+  return String(url || '').split('?')[0];
+}
+
+function isHeavyEndpoint(url) {
+  return HEAVY_ENDPOINTS.includes(endpointPath(url));
+}
+
+async function runQueuedHeavyRequest(work) {
+  if (heavyRequestActive || heavyRequestQueued) {
+    showGlobalStatus('Controller busy - retrying', 'pending');
+  }
+  heavyRequestQueued = true;
+  const run = heavyRequestQueue.catch(() => {}).then(async () => {
+    heavyRequestQueued = false;
+    heavyRequestActive = true;
+    try {
+      return await work();
+    } finally {
+      heavyRequestActive = false;
+    }
+  });
+  heavyRequestQueue = run.catch(() => {});
+  return run;
+}
+
+async function apiFetchJson(url, options = {}) {
+  const {
+    label = url,
+    timeoutMs = 4500,
+    retries = 0,
+    retryDelayMs = 250,
+    showStatus = false,
+    expectOk = true,
+    heavy = isHeavyEndpoint(url)
+  } = options;
+
+  const doRequest = async () => {
+    let attempt = 0;
+    while (attempt <= retries) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+      let statusCode = 0;
+      let rawText = '';
+      try {
+        const response = await fetch(url, { cache: 'no-store', signal: controller.signal });
+        statusCode = response.status;
+        rawText = await response.text();
+        let payload = {};
+        try {
+          payload = rawText ? JSON.parse(rawText) : {};
+        } catch (error) {
+          logApiFailure(url, statusCode, error, rawText);
+          return {
+            ok: false,
+            error: `${label} returned invalid JSON.`,
+            statusCode,
+            rawText
+          };
+        }
+        if (!response.ok) {
+          const error = payload.error || payload.message || `${label} failed with HTTP ${statusCode}.`;
+          logApiFailure(url, statusCode, error, rawText);
+          return { ok: false, error, statusCode, rawText, payload };
+        }
+        if (expectOk && payload && payload.ok === false) {
+          const error = payload.error || payload.message || `${label} failed.`;
+          logApiFailure(url, statusCode, error, rawText);
+          return { ok: false, error, statusCode, rawText, payload };
+        }
+        return { ok: true, payload, statusCode };
+      } catch (error) {
+        const timedOut = error && error.name === 'AbortError';
+        logApiFailure(url, statusCode, error, rawText);
+        if (attempt < retries) {
+          if (showStatus) {
+            showGlobalStatus('Controller busy - retrying', 'pending');
+          }
+          await delay(retryDelayMs);
+          attempt++;
+          continue;
+        }
+        return {
+          ok: false,
+          error: timedOut ? `${label} timed out.` : `${label} did not respond.`,
+          statusCode,
+          rawText
+        };
+      } finally {
+        clearTimeout(timeoutId);
+      }
+    }
+    return { ok: false, error: `${label} failed.`, statusCode: 0, rawText: '' };
+  };
+
+  const result = heavy ? await runQueuedHeavyRequest(doRequest) : await doRequest();
+  if (!result.ok && showStatus) {
+    showGlobalStatus(result.error || `${label} failed.`, 'error');
+  }
+  return result;
+}
+
+function renderUnavailableSection(containerId, message, retrySection) {
+  $(containerId).innerHTML = `
+    <div class="note">
+      ${escapeHtml(message)}
+      <br>
+      <button class="inline-retry" type="button" data-retry-section="${retrySection}">Retry</button>
+    </div>
+  `;
+}
+
+function setControlsDisabled(ids, disabled) {
+  ids.forEach((id) => {
+    const control = $(id);
+    if (control) {
+      control.disabled = disabled;
+    }
+  });
+}
+
+function setButtonBusy(id, busy, busyText) {
+  const button = $(id);
+  if (!button) {
+    return () => {};
+  }
+  const previousText = button.textContent;
+  button.disabled = busy;
+  if (busy && busyText) {
+    button.textContent = busyText;
+  }
+  return () => {
+    button.disabled = false;
+    button.textContent = previousText;
+  };
+}
+
+function messageForParams(params) {
+  if ('masterBrightness' in params) return ['Saving brightness...', 'Brightness saved'];
+  if ('color' in params) return ['Saving color...', 'Color saved'];
+  if ('kelvin' in params) return ['Saving white temperature...', 'White temperature saved'];
+  if ('mode' in params) return ['Changing mode...', 'Mode changed'];
+  if ('gammaEnabled' in params) return ['Saving gamma...', 'Gamma saved'];
+  if ('redGain' in params || 'greenGain' in params || 'blueGain' in params || 'resetCalibration' in params) {
+    return ['Saving calibration...', 'Calibration saved'];
+  }
+  return ['Saving setting...', 'Setting saved'];
 }
 
 function hexToRgb(hex) {
@@ -1600,15 +1836,27 @@ function updatePreviewLabels(state = previewState || lastState) {
   $('previewModeLabel').textContent = `${state.modeDisplayName || state.mode}${palette} at ${state.effectiveBrightness ?? state.masterBrightness}/255`;
 }
 
-async function refreshPreviewState() {
-  const response = await fetch('/api/state', { cache: 'no-store' });
-  const payload = await response.json();
-  if (!payload.ok) {
-    $('previewStatus').textContent = payload.error || 'Preview state unavailable.';
-    return;
+function refreshPreviewFromCachedState() {
+  if (lastState) {
+    previewState = lastState;
+    updatePreviewLabels(lastState);
+    $('previewStatus').textContent = 'Preview: approximate browser-side visualization from cached controller state.';
+    return true;
   }
-  previewState = payload;
-  updatePreviewLabels(payload);
+  $('previewStatus').innerHTML = 'Preview state unavailable. <button class="inline-retry" type="button" data-retry-section="preview">Retry</button>';
+  return false;
+}
+
+async function refreshPreviewState() {
+  if (lastState) {
+    return refreshPreviewFromCachedState();
+  }
+  const ok = await refreshStateSafe({ showStatus: false });
+  if (!ok) {
+    $('previewStatus').innerHTML = 'Preview state unavailable. <button class="inline-retry" type="button" data-retry-section="preview">Retry</button>';
+    return false;
+  }
+  return refreshPreviewFromCachedState();
 }
 
 function drawPreview(timestamp) {
@@ -1627,19 +1875,29 @@ function drawPreview(timestamp) {
 }
 
 async function send(params) {
-  const response = await fetch(`/set?${qs(params)}`, { cache: 'no-store' });
-  const payload = await response.json();
-  if (!payload.ok) {
-    showFavoriteMessage(payload.error || 'Update failed', true);
-    await refreshState();
-    return;
+  const [pendingMessage, successMessage] = messageForParams(params);
+  showGlobalStatus(pendingMessage, 'pending');
+  const result = await apiFetchJson(`/set?${qs(params)}`, {
+    label: 'Setting update',
+    timeoutMs: 4500,
+    retries: 1,
+    showStatus: false
+  });
+  if (!result.ok) {
+    showGlobalStatus(result.error || 'Update failed', 'error');
+    await refreshStateSafe({ showStatus: false });
+    return false;
   }
-  applyState(payload.state || payload);
+  applyState(result.payload.state || result.payload);
+  showGlobalStatus(successMessage, 'success');
+  return true;
 }
 
 function sendSoon(params) {
   clearTimeout(debounceTimer);
-  debounceTimer = setTimeout(() => send(params).catch(console.error), 70);
+  const [pendingMessage] = messageForParams(params);
+  showGlobalStatus(pendingMessage, 'pending');
+  debounceTimer = setTimeout(() => send(params).catch(console.error), 160);
 }
 
 function updateBrightnessReadout(raw, percent) {
@@ -1724,15 +1982,27 @@ function applyModeFilter(filter) {
 }
 
 async function refreshModes() {
-  const response = await fetch('/api/modes', { cache: 'no-store' });
-  const payload = await response.json();
-  if (!payload.ok) {
-    return;
+  return refreshModesSafe();
+}
+
+async function refreshModesSafe(options = {}) {
+  const result = await apiFetchJson('/api/modes', {
+    label: 'Mode list',
+    timeoutMs: 6500,
+    retries: 1,
+    retryDelayMs: 300,
+    showStatus: !!options.showStatus
+  });
+  if (!result.ok) {
+    showGlobalStatus('Mode list failed - retrying', 'error');
+    return false;
   }
+  const payload = result.payload;
   modeMetadata = payload.modes || [];
   renderModeFilters();
   renderModeOptions();
   renderSelectedModeMetadata();
+  return true;
 }
 
 function renderCurrentSummary(state) {
@@ -1778,21 +2048,29 @@ function updateTransitionControls(state) {
 }
 
 async function saveTransitionControls() {
-  const response = await fetch(`/api/transitions/set?${qs({
+  showGlobalStatus('Saving transition settings...', 'pending');
+  const result = await apiFetchJson(`/api/transitions/set?${qs({
     enabled: $('transitionsEnabled').checked ? 1 : 0,
     durationMs: $('transitionDurationMs').value,
     style: $('transitionStyle').value
-  })}`, { cache: 'no-store' });
-  const payload = await response.json();
-  if (!payload.ok) {
-    showFavoriteMessage(payload.error || 'Transition update failed', true);
-    return;
+  })}`, {
+    label: 'Transition settings',
+    timeoutMs: 4500,
+    retries: 1
+  });
+  if (!result.ok) {
+    showFavoriteMessage(result.error || 'Transition update failed', true);
+    showGlobalStatus(result.error || 'Transition update failed', 'error');
+    return false;
   }
+  const payload = result.payload;
   if (payload.state) {
     applyState(payload.state);
   } else {
-    await refreshState();
+    await refreshStateSafe({ showStatus: false });
   }
+  showGlobalStatus('Transition settings saved', 'success');
+  return true;
 }
 
 function paletteById(id) {
@@ -1833,6 +2111,12 @@ function renderPalettes(payload) {
     $('activePaletteId').value = payload.activePaletteId;
   }
 
+  if (!paletteCache.length) {
+    $('paletteList').innerHTML = '<p class="note">No palettes available. Reset built-ins or save a palette.</p>';
+    updatePaletteControls(lastState || payload);
+    return;
+  }
+
   $('paletteList').innerHTML = paletteCache.map((palette) => {
     const labels = [
       palette.builtin ? 'Built-in' : 'Custom',
@@ -1855,35 +2139,55 @@ function renderPalettes(payload) {
         </div>
       </div>
     `;
-  }).join('') || '<p class="note">No palettes available.</p>';
+  }).join('');
 
   updatePaletteControls(lastState || payload);
 }
 
 async function refreshPalettes() {
-  const response = await fetch('/api/palettes', { cache: 'no-store' });
-  const payload = await response.json();
-  if (!payload.ok) {
-    showPaletteMessage(payload.error || 'Palette list failed', true);
-    return;
+  return refreshPalettesSafe();
+}
+
+async function refreshPalettesSafe(options = {}) {
+  const result = await apiFetchJson('/api/palettes', {
+    label: 'Palette list',
+    timeoutMs: 6500,
+    retries: 1,
+    retryDelayMs: 300,
+    showStatus: !!options.showStatus
+  });
+  if (!result.ok) {
+    renderUnavailableSection('paletteList', 'Palette list unavailable.', 'palettes');
+    showPaletteMessage('Palette list unavailable - retry', true);
+    return false;
   }
-  renderPalettes(payload);
+  renderPalettes(result.payload);
+  showPaletteMessage('');
+  return true;
 }
 
 async function selectPalette(id, enabled = $('paletteEnabled').checked) {
-  const response = await fetch(`/api/palettes/select?${qs({ id, enabled: enabled ? 1 : 0 })}`, { cache: 'no-store' });
-  const payload = await response.json();
-  if (!payload.ok) {
-    showPaletteMessage(payload.error || 'Palette selection failed', true);
-    return;
+  showGlobalStatus('Selecting palette...', 'pending');
+  const result = await apiFetchJson(`/api/palettes/select?${qs({ id, enabled: enabled ? 1 : 0 })}`, {
+    label: 'Palette selection',
+    timeoutMs: 4500,
+    retries: 1
+  });
+  if (!result.ok) {
+    showPaletteMessage(result.error || 'Palette selection failed', true);
+    showGlobalStatus(result.error || 'Palette selection failed', 'error');
+    return false;
   }
+  const payload = result.payload;
   showPaletteMessage(payload.message || 'Palette selected');
+  showGlobalStatus('Palette selected', 'success');
   if (payload.state) {
     applyState(payload.state);
   } else {
-    await refreshState();
+    await refreshStateSafe({ showStatus: false });
   }
-  await refreshPalettes();
+  await refreshPalettesSafe();
+  return true;
 }
 
 function editPalette(id) {
@@ -1917,47 +2221,71 @@ async function savePaletteFromForm() {
   if (editingPaletteId) {
     params.id = editingPaletteId;
   }
-  const response = await fetch(`${endpoint}?${qs(params)}`, { cache: 'no-store' });
-  const payload = await response.json();
-  if (!payload.ok) {
-    showPaletteMessage(payload.error || 'Palette save failed', true);
-    return;
+  showGlobalStatus(editingPaletteId ? 'Updating palette...' : 'Saving palette...', 'pending');
+  const result = await apiFetchJson(`${endpoint}?${qs(params)}`, {
+    label: 'Palette save',
+    timeoutMs: 5500,
+    retries: 1
+  });
+  if (!result.ok) {
+    showPaletteMessage(result.error || 'Palette save failed', true);
+    showGlobalStatus(result.error || 'Palette save failed', 'error');
+    return false;
   }
+  const payload = result.payload;
   editingPaletteId = '';
   $('savePalette').textContent = 'Save Palette';
   $('paletteName').value = '';
   showPaletteMessage(payload.message || 'Palette saved');
-  await refreshPalettes();
+  showGlobalStatus('Palette saved', 'success');
+  await refreshPalettesSafe();
+  return true;
 }
 
 async function deletePalette(id) {
-  const response = await fetch(`/api/palettes/delete?${qs({ id })}`, { cache: 'no-store' });
-  const payload = await response.json();
-  if (!payload.ok) {
-    showPaletteMessage(payload.error || 'Palette delete failed', true);
-    return;
+  showGlobalStatus('Deleting palette...', 'pending');
+  const result = await apiFetchJson(`/api/palettes/delete?${qs({ id })}`, {
+    label: 'Palette delete',
+    timeoutMs: 4500,
+    retries: 1
+  });
+  if (!result.ok) {
+    showPaletteMessage(result.error || 'Palette delete failed', true);
+    showGlobalStatus(result.error || 'Palette delete failed', 'error');
+    return false;
   }
+  const payload = result.payload;
   showPaletteMessage(payload.message || 'Palette deleted');
+  showGlobalStatus('Palette deleted', 'success');
   if (payload.state) {
     applyState(payload.state);
   }
-  await refreshPalettes();
+  await refreshPalettesSafe();
+  return true;
 }
 
 async function resetPalettes() {
-  const response = await fetch('/api/palettes/reset', { cache: 'no-store' });
-  const payload = await response.json();
-  if (!payload.ok) {
-    showPaletteMessage(payload.error || 'Palette reset failed', true);
-    return;
+  showGlobalStatus('Resetting palettes...', 'pending');
+  const result = await apiFetchJson('/api/palettes/reset', {
+    label: 'Palette reset',
+    timeoutMs: 6500,
+    retries: 1
+  });
+  if (!result.ok) {
+    showPaletteMessage(result.error || 'Palette reset failed', true);
+    showGlobalStatus(result.error || 'Palette reset failed', 'error');
+    return false;
   }
+  const payload = result.payload;
   editingPaletteId = '';
   $('savePalette').textContent = 'Save Palette';
   showPaletteMessage(payload.message || 'Palettes reset');
+  showGlobalStatus('Palettes reset', 'success');
   if (payload.state) {
     applyState(payload.state);
   }
-  await refreshPalettes();
+  await refreshPalettesSafe();
+  return true;
 }
 
 function updateVisibleControls() {
@@ -2063,19 +2391,27 @@ async function copySceneLink(sceneId) {
 }
 
 async function exportSceneJson(sceneId) {
-  const response = await fetch(`/api/scenes/export?${qs({ id: sceneId })}`, { cache: 'no-store' });
-  const payload = await response.json();
-  if (!payload.ok) {
-    showSceneMessage(payload.error || 'Scene export failed', true);
-    return;
+  showGlobalStatus('Exporting scene...', 'pending');
+  const result = await apiFetchJson(`/api/scenes/export?${qs({ id: sceneId })}`, {
+    label: 'Scene export',
+    timeoutMs: 5500,
+    retries: 1
+  });
+  if (!result.ok) {
+    showSceneMessage(result.error || 'Scene export failed', true);
+    showGlobalStatus(result.error || 'Scene export failed', 'error');
+    return false;
   }
+  const payload = result.payload;
   $('sceneImportJson').value = JSON.stringify(payload, null, 2);
   showSceneMessage('Scene exported');
+  showGlobalStatus('Scene exported', 'success');
+  return true;
 }
 
 async function duplicateScene(sceneId) {
-  const response = await fetch(`/api/scenes/duplicate?${qs({ id: sceneId })}`, { cache: 'no-store' });
-  await handleScenePayload(response, 'Scene duplicated');
+  showGlobalStatus('Duplicating scene...', 'pending');
+  await callScene(`/api/scenes/duplicate?${qs({ id: sceneId })}`, 'Scene duplicated');
 }
 
 async function importSceneJsonFromTextarea() {
@@ -2084,13 +2420,13 @@ async function importSceneJsonFromTextarea() {
     showSceneMessage('Scene JSON is required', true);
     return;
   }
-  const response = await fetch(`/api/scenes/import?${qs({ json })}`, { cache: 'no-store' });
-  await handleScenePayload(response, 'Scene imported');
+  showGlobalStatus('Importing scene...', 'pending');
+  await callScene(`/api/scenes/import?${qs({ json })}`, 'Scene imported');
 }
 
 async function restoreBuiltInScenesFromUi() {
-  const response = await fetch('/api/scenes/reset-builtins', { cache: 'no-store' });
-  await handleScenePayload(response, 'Built-in scenes restored');
+  showGlobalStatus('Restoring built-in scenes...', 'pending');
+  await callScene('/api/scenes/reset-builtins', 'Built-in scenes restored');
 }
 
 async function copyActionLink(actionName) {
@@ -2123,11 +2459,22 @@ function renderTimerStatus(payload) {
 }
 
 async function refreshTimer() {
-  const response = await fetch('/api/timer', { cache: 'no-store' });
-  const payload = await response.json();
-  if (payload.ok) {
-    renderTimerStatus(payload);
+  return refreshTimerSafe();
+}
+
+async function refreshTimerSafe() {
+  const result = await apiFetchJson('/api/timer', {
+    label: 'Timer status',
+    timeoutMs: 3500,
+    retries: 1,
+    showStatus: false
+  });
+  if (!result.ok) {
+    $('timerStatus').textContent = 'Timer status unavailable. Retrying quietly.';
+    return false;
   }
+  renderTimerStatus(result.payload);
+  return true;
 }
 
 function populateTimerScenes() {
@@ -2146,71 +2493,121 @@ async function startTimerFromControls() {
     params.sceneId = $('timerScene').value;
   }
 
-  const response = await fetch(`/api/timer/start?${qs(params)}`, { cache: 'no-store' });
-  const payload = await response.json();
-  if (!payload.ok) {
-    showFavoriteMessage(payload.error || 'Timer failed', true);
-    return;
+  showGlobalStatus('Starting timer...', 'pending');
+  setControlsDisabled(['startTimer'], true);
+  const result = await apiFetchJson(`/api/timer/start?${qs(params)}`, {
+    label: 'Timer start',
+    timeoutMs: 4500,
+    retries: 1
+  });
+  setControlsDisabled(['startTimer'], false);
+  if (!result.ok) {
+    showFavoriteMessage(result.error || 'Timer failed', true);
+    showGlobalStatus(result.error || 'Timer failed', 'error');
+    return false;
   }
+  const payload = result.payload;
   showFavoriteMessage(payload.message || 'Timer started');
+  showGlobalStatus('Timer started', 'success');
   if (payload.state) {
     applyState(payload.state);
   }
   if (payload.timer) {
     renderTimerStatus(payload.timer);
   }
+  return true;
 }
 
 async function cancelTimer() {
-  const response = await fetch('/api/timer/cancel', { cache: 'no-store' });
-  const payload = await response.json();
-  if (!payload.ok) {
-    showFavoriteMessage(payload.message || payload.error || 'No active timer', true);
+  showGlobalStatus('Cancelling timer...', 'pending');
+  setControlsDisabled(['cancelTimer', 'cancelBedtimeFade'], true);
+  const result = await apiFetchJson('/api/timer/cancel', {
+    label: 'Timer cancel',
+    timeoutMs: 4000,
+    retries: 1,
+    expectOk: false
+  });
+  setControlsDisabled(['cancelTimer', 'cancelBedtimeFade'], false);
+  const payload = result.payload || {};
+  if (!result.ok || payload.ok === false) {
+    showFavoriteMessage(payload.message || payload.error || result.error || 'No active timer', true);
+    showGlobalStatus(payload.message || payload.error || result.error || 'Timer cancel failed', result.ok ? 'success' : 'error');
     if (payload.timer) {
       renderTimerStatus(payload.timer);
     }
-    return;
+    return false;
   }
   showFavoriteMessage(payload.message || 'Timer cancelled');
+  showGlobalStatus('Timer cancelled', 'success');
   if (payload.state) {
     applyState(payload.state);
   }
   if (payload.timer) {
     renderTimerStatus(payload.timer);
   }
+  return true;
 }
 
 async function startBedtimeFade() {
-  const response = await fetch(`/api/bedtime/start?${qs({
+  showGlobalStatus('Starting bedtime fade...', 'pending');
+  setControlsDisabled(['startBedtimeFade'], true);
+  const result = await apiFetchJson(`/api/bedtime/start?${qs({
     minutes: $('bedtimeMinutes').value,
     target: $('bedtimeTarget').value,
     saveDefault: 1
-  })}`, { cache: 'no-store' });
-  const payload = await response.json();
-  if (!payload.ok) {
-    showFavoriteMessage(payload.error || 'Bedtime fade failed', true);
-    return;
+  })}`, {
+    label: 'Bedtime fade',
+    timeoutMs: 4500,
+    retries: 1
+  });
+  setControlsDisabled(['startBedtimeFade'], false);
+  if (!result.ok) {
+    showFavoriteMessage(result.error || 'Bedtime fade failed', true);
+    showGlobalStatus(result.error || 'Bedtime fade failed', 'error');
+    return false;
   }
+  const payload = result.payload;
   showFavoriteMessage(payload.message || 'Bedtime fade started');
+  showGlobalStatus('Bedtime fade started', 'success');
   if (payload.state) {
     applyState(payload.state);
   }
   if (payload.timer) {
     renderTimerStatus(payload.timer);
   }
+  return true;
 }
 
 async function refreshState() {
-  const response = await fetch('/state', { cache: 'no-store' });
-  const state = await response.json();
-  applyState(state);
+  return refreshStateSafe();
+}
+
+async function refreshStateSafe(options = {}) {
+  const result = await apiFetchJson('/api/state', {
+    label: 'State',
+    timeoutMs: 4500,
+    retries: 1,
+    retryDelayMs: 250,
+    showStatus: !!options.showStatus
+  });
+  if (!result.ok) {
+    if (!lastState) {
+      $('status').textContent = 'Open the D1 mini IP address again';
+    }
+    if (lastState) {
+      refreshPreviewFromCachedState();
+    }
+    return false;
+  }
+  applyState(result.payload);
+  return true;
 }
 
 function renderFavorites(payload) {
   favoriteCache = payload.favorites || [];
   const visibleFavorites = favoriteCache.filter((favorite) => favorite.available);
   if (!visibleFavorites.length) {
-    $('favoriteBar').innerHTML = '<p class="note">No favorites available.</p>';
+    $('favoriteBar').innerHTML = '<p class="note">No favorites configured. Use Reset Favorites to restore defaults.</p>';
     return;
   }
 
@@ -2223,46 +2620,97 @@ function renderFavorites(payload) {
 }
 
 async function refreshFavorites() {
-  const response = await fetch('/api/favorites', { cache: 'no-store' });
-  const payload = await response.json();
-  if (!payload.ok) {
-    showFavoriteMessage(payload.error || 'Favorite list failed', true);
-    return;
-  }
-  renderFavorites(payload);
+  return refreshFavoritesSafe();
 }
 
-async function handleFavoritePayload(response, successMessage) {
-  const payload = await response.json();
-  if (!payload.ok) {
-    showFavoriteMessage(payload.error || 'Favorite action failed', true);
-    await refreshState();
-    await refreshFavorites();
-    return;
+async function refreshFavoritesSafe() {
+  const result = await apiFetchJson('/api/favorites', {
+    label: 'Favorite list',
+    timeoutMs: 4500,
+    retries: 1,
+    retryDelayMs: 250,
+    showStatus: false
+  });
+  if (!result.ok) {
+    renderUnavailableSection('favoriteBar', 'Favorite list unavailable.', 'favorites');
+    showFavoriteMessage('Favorite list unavailable - retry', true);
+    return false;
   }
+  renderFavorites(result.payload);
+  showFavoriteMessage('');
+  return true;
+}
+
+async function handleFavoritePayload(result, successMessage, options = {}) {
+  if (!result.ok) {
+    showFavoriteMessage(result.error || 'Favorite action failed', true);
+    showGlobalStatus(result.error || 'Favorite action failed', 'error');
+    await refreshStateSafe({ showStatus: false });
+    return false;
+  }
+  const payload = result.payload;
   showFavoriteMessage(successMessage || payload.message || '');
+  showGlobalStatus(successMessage || payload.message || 'Favorite loaded', 'success');
   if (payload.state) {
     applyState(payload.state);
   } else {
-    await refreshState();
+    await refreshStateSafe({ showStatus: false });
   }
-  await refreshFavorites();
-  await refreshScenes();
+  if (options.refreshFavorites !== false) {
+    await refreshFavoritesSafe();
+  }
+  return true;
 }
 
 async function runAction(name) {
-  const response = await fetch(`/api/action?${qs({ name })}`, { cache: 'no-store' });
-  await handleFavoritePayload(response, name === 'warmDimNow' ? 'Warm Dim Now' : 'Action completed');
+  const message = name === 'warmDimNow' ? 'Warm Dim Now' : 'Action completed';
+  showGlobalStatus(name === 'warmDimNow' ? 'Applying Warm Dim Now...' : 'Running action...', 'pending');
+  const result = await apiFetchJson(`/api/action?${qs({ name })}`, {
+    label: message,
+    timeoutMs: 4500,
+    retries: 1
+  });
+  await handleFavoritePayload(result, message, { refreshFavorites: false });
 }
 
 async function updateNightGuardFromControls() {
-  const response = await fetch(`/api/nightguard/set?${qs({
+  const previousState = lastState;
+  showGlobalStatus('Updating Night Guard...', 'pending');
+  setControlsDisabled(['nightGuardEnabled', 'nightGuardMaxBrightness', 'nightGuardBlockFlashing', 'nightGuardPreferWarm'], true);
+  const result = await apiFetchJson(`/api/nightguard/set?${qs({
     enabled: $('nightGuardEnabled').checked ? 1 : 0,
     maxBrightness: $('nightGuardMaxBrightness').value,
     blockFlashing: $('nightGuardBlockFlashing').checked ? 1 : 0,
     preferWarm: $('nightGuardPreferWarm').checked ? 1 : 0
-  })}`, { cache: 'no-store' });
-  await handleFavoritePayload(response, 'Night Guard updated');
+  })}`, {
+    label: 'Night Guard update',
+    timeoutMs: 4500,
+    retries: 1
+  });
+  setControlsDisabled(['nightGuardEnabled', 'nightGuardMaxBrightness', 'nightGuardBlockFlashing', 'nightGuardPreferWarm'], false);
+  if (!result.ok) {
+    if (previousState) {
+      updateNightGuardControls(previousState);
+    }
+    $('nightGuardNote').textContent = 'Night Guard update failed.';
+    showGlobalStatus('Night Guard update failed.', 'error');
+    return false;
+  }
+  const payload = result.payload;
+  if (payload.state) {
+    applyState(payload.state);
+  } else {
+    await refreshStateSafe({ showStatus: false });
+  }
+  const enabled = !!(payload.state?.nightGuardEnabled ?? lastState?.nightGuardEnabled);
+  showGlobalStatus(enabled ? 'Night Guard enabled' : 'Night Guard disabled', 'success');
+  return true;
+}
+
+function debouncedNightGuardUpdate() {
+  clearTimeout(nightGuardDebounceTimer);
+  $('nightGuardNote').textContent = 'Updating Night Guard...';
+  nightGuardDebounceTimer = setTimeout(() => updateNightGuardFromControls().catch(console.error), 220);
 }
 
 function renderScenes(payload) {
@@ -2270,7 +2718,7 @@ function renderScenes(payload) {
   populateTimerScenes();
   $('sceneCount').textContent = `${payload.count || 0} / ${payload.maxScenes || 0} scenes`;
   if (!sceneCache.length) {
-    $('sceneList').innerHTML = '<p class="note">No scenes saved.</p>';
+    $('sceneList').innerHTML = '<p class="note">No scenes saved yet. Save the current light as a scene.</p>';
     return;
   }
 
@@ -2310,72 +2758,113 @@ function renderScenes(payload) {
 }
 
 async function refreshScenes() {
-  const response = await fetch('/api/scenes', { cache: 'no-store' });
-  const payload = await response.json();
-  if (!payload.ok) {
-    showSceneMessage(payload.error || 'Scene list failed', true);
-    return;
-  }
-  renderScenes(payload);
+  return refreshScenesSafe();
 }
 
 async function callScene(url, successMessage, refreshLighting = false) {
-  const response = await fetch(url, { cache: 'no-store' });
-  const payload = await response.json();
-  if (!payload.ok) {
-    showSceneMessage(payload.error || 'Scene action failed', true);
-    return;
-  }
-  showSceneMessage(successMessage || payload.message || '');
-  if (payload.state) {
-    applyState(payload.state);
-  } else if (refreshLighting) {
-    await refreshState();
-  }
-  await refreshScenes();
+  const result = await apiFetchJson(url, {
+    label: successMessage || 'Scene action',
+    timeoutMs: 5500,
+    retries: 1
+  });
+  return handleScenePayload(result, successMessage, refreshLighting);
 }
 
-async function handleScenePayload(response, successMessage, refreshLighting = false) {
-  const payload = await response.json();
-  if (!payload.ok) {
-    showSceneMessage(payload.error || 'Scene action failed', true);
-    return;
+async function refreshScenesSafe(options = {}) {
+  const result = await apiFetchJson('/api/scenes', {
+    label: 'Scene list',
+    timeoutMs: 7000,
+    retries: 1,
+    retryDelayMs: 350,
+    showStatus: !!options.showStatus
+  });
+  if (!result.ok) {
+    renderUnavailableSection('sceneList', 'Scene list unavailable.', 'scenes');
+    showSceneMessage('Scene list failed - retrying', true);
+    return false;
   }
+  renderScenes(result.payload);
+  showSceneMessage('');
+  return true;
+}
+
+async function handleScenePayload(result, successMessage, refreshLighting = false) {
+  if (!result.ok) {
+    showSceneMessage(result.error || 'Scene action failed', true);
+    showGlobalStatus(result.error || 'Scene action failed', 'error');
+    return false;
+  }
+  const payload = result.payload;
   showSceneMessage(successMessage || payload.message || '');
+  showGlobalStatus(successMessage || payload.message || 'Scene updated', 'success');
   if (payload.state) {
     applyState(payload.state);
   } else if (refreshLighting) {
-    await refreshState();
+    await refreshStateSafe({ showStatus: false });
   }
-  await refreshScenes();
+  await refreshScenesSafe();
+  return true;
 }
 
 async function runSurprise() {
   const mood = $('surpriseMood').value;
+  const releaseButton = setButtonBusy('surpriseButton', true, 'Choosing...');
   $('surpriseSummary').textContent = 'Choosing a safe surprise...';
-  const response = await fetch(`/api/surprise?${qs({ mood, apply: 1 })}`, { cache: 'no-store' });
-  const payload = await response.json();
-  if (!payload.ok) {
-    $('surpriseSummary').textContent = payload.error || 'Surprise Me failed';
-    $('surpriseSummary').style.color = '#ff9a9a';
-    return;
-  }
   $('surpriseSummary').style.color = 'var(--accent-2)';
-  const caps = [payload.powerCapped ? 'power cap' : '', payload.nightGuardCapped ? 'Night Guard cap' : ''].filter(Boolean).join(', ');
-  $('surpriseSummary').textContent = `${payload.moodLabel}: ${payload.modeDisplayName}, brightness ${payload.brightness}/255${payload.paletteEnabled ? `, ${payload.paletteId}` : ''}${caps ? ` (${caps})` : ''}`;
-  if (payload.state) {
-    applyState(payload.state);
-  } else {
-    await refreshState();
+  showGlobalStatus('Choosing a safe surprise...', 'pending');
+  try {
+    const result = await apiFetchJson(`/api/surprise?${qs({ mood, apply: 1 })}`, {
+      label: 'Surprise Me',
+      timeoutMs: 6500,
+      retries: 1,
+      retryDelayMs: 300
+    });
+    if (!result.ok) {
+      $('surpriseSummary').textContent = 'Surprise failed - controller did not return valid JSON.';
+      $('surpriseSummary').style.color = '#ff9a9a';
+      showGlobalStatus('Surprise failed - controller did not respond', 'error');
+      return false;
+    }
+    const payload = result.payload;
+    if (!payload.ok) {
+      $('surpriseSummary').textContent = payload.error || 'Surprise failed - controller did not return valid JSON.';
+      $('surpriseSummary').style.color = '#ff9a9a';
+      showGlobalStatus(payload.error || 'Surprise failed - controller did not respond', 'error');
+      return false;
+    }
+    $('surpriseSummary').style.color = 'var(--accent-2)';
+    const caps = [payload.powerCapped ? 'power cap' : '', payload.nightGuardCapped ? 'Night Guard cap' : ''].filter(Boolean).join(', ');
+    $('surpriseSummary').textContent = `${payload.moodLabel}: ${payload.modeDisplayName}, brightness ${payload.brightness}/255${payload.paletteEnabled ? `, ${payload.paletteId}` : ''}${caps ? ` (${caps})` : ''}`;
+    if (payload.state) {
+      applyState(payload.state);
+    } else {
+      await refreshStateSafe({ showStatus: false });
+    }
+    refreshPreviewFromCachedState();
+    showGlobalStatus('Surprise applied', 'success');
+    return true;
+  } catch (error) {
+    console.warn('API request failed', {
+      url: '/api/surprise',
+      statusCode: 0,
+      error: error?.message || String(error),
+      rawTextPreview: '',
+      time: new Date().toISOString()
+    });
+    $('surpriseSummary').textContent = 'Surprise failed - controller did not return valid JSON.';
+    $('surpriseSummary').style.color = '#ff9a9a';
+    showGlobalStatus('Surprise failed - controller did not respond', 'error');
+    return false;
+  } finally {
+    releaseButton();
   }
-  await refreshPreviewState();
 }
 
 async function saveSurpriseAsScene() {
   const mood = $('surpriseMood').selectedOptions[0]?.textContent || 'Surprise';
   const name = `${mood} Surprise`;
-  const response = await fetch(`/api/scenes/save?${qs({ name })}`, { cache: 'no-store' });
-  await handleScenePayload(response, 'Surprise scene saved');
+  showGlobalStatus('Saving scene...', 'pending');
+  await callScene(`/api/scenes/save?${qs({ name })}`, 'Surprise scene saved');
 }
 
 $('masterBrightness').addEventListener('input', (event) => {
@@ -2398,8 +2887,8 @@ $('resetCalibration').addEventListener('click', () => {
 
 $('saveScene').addEventListener('click', () => {
   const name = $('sceneName').value.trim();
-  fetch(`/api/scenes/save?${qs({ name })}`, { cache: 'no-store' })
-    .then((response) => handleScenePayload(response, 'Scene saved'))
+  showGlobalStatus('Saving scene...', 'pending');
+  callScene(`/api/scenes/save?${qs({ name })}`, 'Scene saved')
     .then(() => $('sceneName').value = '')
     .catch(console.error);
 });
@@ -2412,24 +2901,31 @@ $('panicWarm').addEventListener('click', () => {
 });
 
 $('resetFavorites').addEventListener('click', () => {
-  fetch('/api/favorites/reset', { cache: 'no-store' })
-    .then((response) => handleFavoritePayload(response, 'Favorites reset'))
+  showGlobalStatus('Resetting favorites...', 'pending');
+  apiFetchJson('/api/favorites/reset', {
+    label: 'Favorites reset',
+    timeoutMs: 4500,
+    retries: 1
+  })
+    .then((result) => handleFavoritePayload(result, 'Favorites reset'))
     .catch(console.error);
 });
 
 $('exportFullBackup').addEventListener('click', async () => {
-  try {
-    const response = await fetch('/api/backup/export', { cache: 'no-store' });
-    const payload = await response.json();
-    if (!payload.ok) {
-      showBackupMessage(payload.error || 'Backup export failed', true);
-      return;
-    }
-    $('backupExportJson').value = JSON.stringify(payload, null, 2);
-    showBackupMessage('Full backup exported');
-  } catch (error) {
-    showBackupMessage('Backup export failed', true);
+  showGlobalStatus('Exporting full backup...', 'pending');
+  const result = await apiFetchJson('/api/backup/export', {
+    label: 'Backup export',
+    timeoutMs: 9000,
+    retries: 1
+  });
+  if (!result.ok) {
+    showBackupMessage(result.error || 'Backup export failed', true);
+    showGlobalStatus(result.error || 'Backup export failed', 'error');
+    return;
   }
+  $('backupExportJson').value = JSON.stringify(result.payload, null, 2);
+  showBackupMessage('Full backup exported');
+  showGlobalStatus('Full backup exported', 'success');
 });
 
 $('importFullBackup').addEventListener('click', async () => {
@@ -2442,9 +2938,16 @@ $('importFullBackup').addEventListener('click', async () => {
   if (confirmText !== 'YES') {
     return;
   }
-  const response = await fetch(`/api/backup/import?${qs({ confirm: 'YES', json })}`, { cache: 'no-store' });
-  const payload = await response.json();
-  showBackupMessage(payload.message || payload.error || 'Backup import checked', !payload.ok);
+  showGlobalStatus('Checking backup import...', 'pending');
+  const result = await apiFetchJson(`/api/backup/import?${qs({ confirm: 'YES', json })}`, {
+    label: 'Backup import',
+    timeoutMs: 9000,
+    retries: 0,
+    expectOk: false
+  });
+  const payload = result.payload || {};
+  showBackupMessage(payload.message || payload.error || result.error || 'Backup import checked', !result.ok || payload.ok === false);
+  showGlobalStatus(payload.message || result.error || 'Backup import checked', result.ok ? 'success' : 'error');
 });
 
 $('factoryReset').addEventListener('click', async () => {
@@ -2452,17 +2955,24 @@ $('factoryReset').addEventListener('click', async () => {
   if (confirmText !== 'YES') {
     return;
   }
-  const response = await fetch(`/api/reset?${qs({ target: 'factory', confirm: 'YES' })}`, { cache: 'no-store' });
-  const payload = await response.json();
-  if (!payload.ok) {
-    showBackupMessage(payload.error || 'Factory reset failed', true);
+  showGlobalStatus('Factory reset running...', 'pending');
+  const result = await apiFetchJson(`/api/reset?${qs({ target: 'factory', confirm: 'YES' })}`, {
+    label: 'Factory reset',
+    timeoutMs: 9000,
+    retries: 0
+  });
+  if (!result.ok) {
+    showBackupMessage(result.error || 'Factory reset failed', true);
+    showGlobalStatus(result.error || 'Factory reset failed', 'error');
     return;
   }
+  const payload = result.payload;
   showBackupMessage(payload.message || 'Factory reset complete');
-  await refreshState();
-  await refreshPalettes();
-  await refreshScenes();
-  await refreshFavorites();
+  showGlobalStatus('Factory reset complete', 'success');
+  await refreshStateSafe({ showStatus: false });
+  await refreshPalettesSafe();
+  await refreshScenesSafe();
+  await refreshFavoritesSafe();
 });
 
 $('previewPause').addEventListener('change', (event) => {
@@ -2517,8 +3027,13 @@ $('favoriteBar').addEventListener('click', (event) => {
   if (!favoriteId) {
     return;
   }
-  fetch(`/api/favorites/load?${qs({ id: favoriteId })}`, { cache: 'no-store' })
-    .then((response) => handleFavoritePayload(response, 'Favorite loaded'))
+  showGlobalStatus('Loading favorite...', 'pending');
+  apiFetchJson(`/api/favorites/load?${qs({ id: favoriteId })}`, {
+    label: 'Favorite load',
+    timeoutMs: 4500,
+    retries: 1
+  })
+    .then((result) => handleFavoritePayload(result, 'Favorite loaded', { refreshFavorites: false }))
     .catch(console.error);
 });
 
@@ -2550,9 +3065,8 @@ $('sceneList').addEventListener('click', (event) => {
   const deleteId = event.target.dataset.sceneDelete;
 
   if (loadId) {
-    fetch(`/api/scenes/load?${qs({ id: loadId })}`, { cache: 'no-store' })
-      .then((response) => handleScenePayload(response, 'Scene loaded', true))
-      .catch(console.error);
+    showGlobalStatus('Loading scene...', 'pending');
+    callScene(`/api/scenes/load?${qs({ id: loadId })}`, 'Scene loaded', true).catch(console.error);
     return;
   }
   if (duplicateId) {
@@ -2571,16 +3085,14 @@ $('sceneList').addEventListener('click', (event) => {
     const current = sceneCache.find((scene) => scene.id === renameId);
     const nextName = window.prompt('Scene name', current ? current.name : '');
     if (nextName !== null) {
-      fetch(`/api/scenes/rename?${qs({ id: renameId, name: nextName })}`, { cache: 'no-store' })
-        .then((response) => handleScenePayload(response, 'Scene renamed'))
-        .catch(console.error);
+      showGlobalStatus('Renaming scene...', 'pending');
+      callScene(`/api/scenes/rename?${qs({ id: renameId, name: nextName })}`, 'Scene renamed').catch(console.error);
     }
     return;
   }
   if (deleteId) {
-    fetch(`/api/scenes/delete?${qs({ id: deleteId })}`, { cache: 'no-store' })
-      .then((response) => handleScenePayload(response, 'Scene deleted'))
-      .catch(console.error);
+    showGlobalStatus('Deleting scene...', 'pending');
+    callScene(`/api/scenes/delete?${qs({ id: deleteId })}`, 'Scene deleted').catch(console.error);
   }
 });
 
@@ -2605,7 +3117,7 @@ $('mode').addEventListener('change', (event) => {
 });
 
 $('nightGuardMaxBrightness').addEventListener('input', () => {
-  updateNightGuardFromControls().catch(console.error);
+  debouncedNightGuardUpdate();
 });
 
 $('bootBehavior').addEventListener('change', (event) => {
@@ -2624,17 +3136,44 @@ $('bootBehavior').addEventListener('change', (event) => {
   $(id).addEventListener('change', () => send({ [id]: $(id).value }).catch(console.error));
 });
 
-refreshState()
-  .catch(() => $('status').textContent = 'Open the D1 mini IP address again');
-refreshModes().catch(console.error);
-refreshPalettes().catch(() => showPaletteMessage('Palette list unavailable', true));
-refreshScenes().catch(() => showSceneMessage('Scene list unavailable', true));
-refreshFavorites().catch(() => showFavoriteMessage('Favorite list unavailable', true));
-refreshTimer().catch(console.error);
-refreshPreviewState().catch(() => $('previewStatus').textContent = 'Preview state unavailable.');
+document.addEventListener('click', (event) => {
+  const retrySection = event.target.closest('[data-retry-section]')?.dataset.retrySection;
+  if (!retrySection) {
+    return;
+  }
+  if (retrySection === 'favorites') refreshFavoritesSafe().catch(console.error);
+  if (retrySection === 'scenes') refreshScenesSafe({ showStatus: true }).catch(console.error);
+  if (retrySection === 'palettes') refreshPalettesSafe({ showStatus: true }).catch(console.error);
+  if (retrySection === 'preview') refreshStateSafe({ showStatus: true }).then(refreshPreviewFromCachedState).catch(console.error);
+  if (retrySection === 'modes') refreshModesSafe({ showStatus: true }).catch(console.error);
+});
+
+async function bootUi() {
+  showGlobalStatus('Connecting...', 'pending');
+
+  await refreshStateSafe({ showStatus: true });
+  await delay(100);
+  await refreshModesSafe({ showStatus: false });
+  await delay(100);
+  await refreshFavoritesSafe();
+  await delay(100);
+  await refreshScenesSafe();
+  await delay(100);
+  await refreshPalettesSafe();
+  await delay(100);
+  await refreshTimerSafe();
+
+  refreshPreviewFromCachedState();
+  showGlobalStatus('Connected', 'success');
+}
+
 requestAnimationFrame(drawPreview);
+bootUi().catch((error) => {
+  console.warn('UI boot failed', error);
+  showGlobalStatus('Controller connection failed - retrying', 'error');
+});
 timerPoll = setInterval(() => refreshTimer().catch(console.error), 10000);
-setInterval(() => refreshPreviewState().catch(console.error), 2500);
+setInterval(() => refreshStateSafe({ showStatus: false }).catch(console.warn), 15000);
 </script>
 </body>
 </html>

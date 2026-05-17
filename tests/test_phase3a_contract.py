@@ -152,7 +152,7 @@ class Phase3ASmoothTransitionsContractTests(unittest.TestCase):
             'id="transitionStatus"',
             "updateTransitionControls",
             "saveTransitionControls",
-            "fetch(`/api/transitions/set?",
+            "apiFetchJson(`/api/transitions/set?",
             "Transitioning:",
             '<option value="fade">Fade</option>',
             '<option value="0">Instant</option>',

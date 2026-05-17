@@ -11,6 +11,14 @@ The LED data pin is configured as D3 / GPIO0. On ESP8266 boards, GPIO0 affects b
 - Check `/diagnostics` after reconnecting.
 - Runtime free heap after loading the main page is not measured in this pass.
 
+## UI section says unavailable
+
+- Use the section Retry button first; it refreshes only that section instead of reloading the whole page.
+- If Favorites, Scenes, or Palettes are truly empty, the UI now says empty rather than unavailable.
+- `Unavailable` means endpoint failure, invalid JSON, timeout, Wi-Fi interruption, or a low-resource controller response.
+- Open the browser console and look for `API request failed` entries with URL, status code, raw response preview, and timestamp.
+- Check `/api/resources` after repeated failures; low max free block or high fragmentation can make large JSON routes unreliable.
+
 ## Scenes or palettes will not save
 
 - Check the reported count against the max count.

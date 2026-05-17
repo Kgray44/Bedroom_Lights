@@ -488,6 +488,42 @@ Verification status:
 - Runtime free heap, LittleFS usage, OTA behavior, web responsiveness, animation responsiveness, and physical LED behavior: not measured.
 - Compiled successfully for the D1 mini / ESP8266 target, but not physically tested on LEDs.
 
+## UI Feedback + Motion Smoothness
+
+Main additions:
+
+- Added a visible global status banner for connection, save, success, retry, and error messages.
+- Added a central browser API helper with no-store fetches, timeout handling, retries, invalid JSON diagnostics, and structured console warnings.
+- Serialized initial UI API loading to reduce startup pressure on the ESP8266.
+- Added a browser-side queue for heavy endpoints such as modes, scenes, palettes, diagnostics/resources, and backup export.
+- Changed preview behavior to use cached state and reduced background state refresh pressure.
+- Split empty-list messages from true unavailable/error states for favorites, scenes, and palettes.
+- Added retry buttons for failed favorites, scenes, palettes, and preview sections.
+- Hardened Surprise Me so it cannot remain stuck on the choosing message.
+- Hardened Night Guard UI updates so enabled/off/capped notes reflect successful state changes.
+- Added one central temporal smoothing buffer and bounded per-channel smoothing for ambient animated modes.
+- Added interpolated hash texture for selected renderer texture terms that could step between time buckets.
+- Preserved diagnostic/utility immediacy and bypassed smoothing for Solid, Strobe, Flash, diagnostics, active transitions, and utility/flashing modes.
+
+Generated documentation:
+
+- `docs/generated/BedroomLedController_Live_UI_Feedback_Report.md`
+- `docs/generated/BedroomLedController_Motion_Smoothness_Report.md`
+- `docs/generated/BedroomLedController_Final_Report.md`
+- `docs/generated/BedroomLedController_Resource_And_Migration_Report.md`
+- `docs/generated/BedroomLedController_Troubleshooting.md`
+- `docs/generated/Phase_Completion.md`
+
+Verification status:
+
+- Worktree firmware compile for `esp8266:esp8266:d1_mini`: passed.
+- Arduino sketch folder compile for `esp8266:esp8266:d1_mini`: passed.
+- `python -m unittest discover -s tests -v`: passed, 130 tests.
+- resource report: RAM 60,312 / 80,192 bytes (75%); IRAM 61,383 / 65,536 bytes (93%); flash 605,676 / 1,048,576 bytes (57%).
+- Runtime heap after UI changes: not measured.
+- Physical LED visual smoothness: not visually retested by Codex.
+- OTA firmware upload: not performed.
+
 ## Phase 4C - Remaining Mode Library Batch 2
 
 Main additions:

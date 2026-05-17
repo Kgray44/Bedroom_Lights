@@ -28,13 +28,14 @@ Full measurement artifact:
 
 ## Compile resources
 
-- RAM globals/statics: 59,896 / 80,192 bytes (74%).
+- Latest verified compile after UI/motion pass: passed for `esp8266:esp8266:d1_mini`.
+- RAM globals/statics: 60,312 / 80,192 bytes (75%).
 - IRAM: 61,383 / 65,536 bytes (93%).
-- Flash/IROM: 588,188 / 1,048,576 bytes (56%).
-- Live `sketchSizeBytes`: 647,552.
-- Live `freeSketchSpaceBytes`: 1,445,888.
+- Flash/IROM: 605,676 / 1,048,576 bytes (57%).
+- Live `sketchSizeBytes`: 647,552 from the prior local hardware measurement; not remeasured after the UI/motion pass.
+- Live `freeSketchSpaceBytes`: 1,445,888 from the prior local hardware measurement; not remeasured after the UI/motion pass.
 
-The firmware compiled and uploaded successfully over USB to the D1 mini.
+The firmware compiled successfully after the UI/motion pass. USB upload was not performed in this pass.
 
 ## Live filesystem resources
 
@@ -89,3 +90,18 @@ The firmware compiled and uploaded successfully over USB to the D1 mini.
 ## Migration recommendation
 
 The build still works on the D1 mini, but the 140-LED configuration makes heap margin tight. Stay on the D1 mini for this completed feature set only if no major features are added and live measurements remain stable. Move to ESP32-S3 for future expansion, richer JSON routes, larger UI pages, more persistent data, sensors, physical controls, or any work that increases heap pressure.
+
+## UI feedback and motion smoothness pass
+
+This focused pass reduced browser-side API pressure and added central temporal smoothing without adding new lighting modes.
+
+- UI startup now loads state, modes, favorites, scenes, palettes, and timer status sequentially with short spacing.
+- Heavy browser requests are queued for modes, scenes, palettes, diagnostics/resources, and full backup export.
+- Preview rendering now prefers cached state and no longer polls `/api/state` every 2.5 seconds.
+- Motion smoothing adds one `RgbPixel smoothedFrame[LED_COUNT]` buffer, approximately 420 bytes at 140 LEDs.
+- Smoothing is bypassed for diagnostics, transitions, Solid/off-style output, Strobe, Flash, and metadata-marked utility/flashing modes.
+- Compile resources after this pass: RAM 60,312 / 80,192 bytes (75%); IRAM 61,383 / 65,536 bytes (93%); Flash/IROM 605,676 / 1,048,576 bytes (57%).
+- Python contract tests after this pass: `python -m unittest discover -s tests -v` passed, 130 tests.
+- Runtime heap after this UI/motion pass: not measured.
+- Physical LED visual smoothness: not visually retested by Codex.
+- OTA firmware upload after this pass: not performed.

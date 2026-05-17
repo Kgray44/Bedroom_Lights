@@ -108,7 +108,8 @@ class Phase3CBrowserPreviewSurpriseContractTests(unittest.TestCase):
             "document.visibilityState",
             "prefers-reduced-motion",
             "refreshPreviewState",
-            "setInterval(() => refreshPreviewState",
+            "refreshPreviewFromCachedState",
+            "setInterval(() => refreshStateSafe({ showStatus: false }).catch(console.warn), 15000)",
             "drawPreviewStrip",
             "Preview: approximate browser-side visualization",
         ]:
@@ -160,7 +161,7 @@ class Phase3CBrowserPreviewSurpriseContractTests(unittest.TestCase):
             '<option value="colorful"',
             '<option value="cozy"',
             "runSurprise",
-            "fetch(`/api/surprise?",
+            "apiFetchJson(`/api/surprise?",
             "saveSurpriseAsScene",
             "/api/scenes/save",
         ]:

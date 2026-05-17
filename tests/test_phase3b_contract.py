@@ -199,7 +199,7 @@ class Phase3BPaletteBuilderContractTests(unittest.TestCase):
             "editPalette",
             "deletePalette",
             "resetPalettes",
-            "fetch('/api/palettes'",
+            "apiFetchJson('/api/palettes'",
         ]:
             self.assertIn(required, web_ui)
 

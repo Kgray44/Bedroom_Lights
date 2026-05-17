@@ -93,6 +93,8 @@ uint32_t schedulerLastCheckMs = 0;
 TransitionState transitionState;
 RgbPixel previousFrame[LED_COUNT];
 RgbPixel targetFrame[LED_COUNT];
+RgbPixel smoothedFrame[LED_COUNT];
+bool smoothedFrameInitialized = false;
 uint8_t lastOutputEffectiveBrightness = MASTER_BRIGHTNESS;
 bool transitionsSuppressed = false;
 bool transitionTimerCompletionActive = false;
