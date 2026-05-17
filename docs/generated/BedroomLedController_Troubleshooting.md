@@ -9,7 +9,7 @@ The LED data pin is configured as D3 / GPIO0. On ESP8266 boards, GPIO0 affects b
 - Confirm the D1 mini is powered.
 - Try the fallback AP if Wi-Fi credentials are wrong.
 - Check `/diagnostics` after reconnecting.
-- Runtime free heap after loading the main page is not measured in this pass.
+- If the diagnostics page is sparse, check `/api/resources`; `/api/diagnostics` intentionally returns compact heap-safe JSON on ESP8266.
 
 ## UI section says unavailable
 
@@ -25,6 +25,7 @@ The LED data pin is configured as D3 / GPIO0. On ESP8266 boards, GPIO0 affects b
 - If state cannot be parsed or loaded, the UI shows `State unavailable - controls preserved` instead of treating HTML defaults as real controller state.
 - Check `/api/state` directly. If it fails to parse, fix that before trusting the visible controls.
 - Check `/api/diagnostics` or `/api/resources` for `lastMutationRoute`, `lastMutationAction`, and before/after brightness/mode fields.
+- Final Playwright testing loaded and reloaded the page with 14 read-only requests and no mutation endpoints.
 
 ## Lights turn off unexpectedly
 
@@ -53,21 +54,22 @@ The LED data pin is configured as D3 / GPIO0. On ESP8266 boards, GPIO0 affects b
 - Diagnostics reports `otaRoutePresent` and `browserUpdateRoutePresent`.
 - Diagnostics reports `freeSketchSpaceBytes`; OTA can fail if free sketch space is too low for the uploaded binary.
 - If OTA fails after a large feature build, upload over USB first, then check `/api/diagnostics`.
-- OTA upload was not retested after Phase 4D.
+- Final OTA capability check: `/ota` returned HTTP 200, `/update` returned HTTP 401 without auth and HTTP 200 with local OTA credentials. OTA firmware upload was not performed.
 
 ## Backup issues
 
-- Full backup export may be large.
-- Full backup export is chunked in this build, but it is still one of the heaviest routes on ESP8266.
+- Full backup export is large.
+- Full backup export streams scenes and palettes and omits full diagnostics with `diagnostics.omittedFromBackup=true`.
 - Full backup import validates schema only and reports `applied:false`.
 - Use selective scene, palette, and schedule imports for applied restore.
-- If the web UI resets or hangs after backup export, check `endpointHeapMetrics`, `minFreeHeapSinceBoot`, `maxFreeBlockSize`, and `heapFragmentationPercent` in `/api/diagnostics`.
+- If the web UI resets or hangs after backup export, check `minFreeHeapSinceBoot`, `maxFreeBlockSize`, and `heapFragmentationPercent` in `/api/resources`.
 
 ## Low heap or fragmentation warnings
 
 - Low `freeHeapNow` means the current runtime has little RAM margin.
 - Low `maxFreeBlockSize` means large contiguous allocations may fail.
 - High `heapFragmentationPercent` means repeated dynamic allocation may have split the heap into smaller blocks.
+- `/api/resources` may return `endpointHeapMetrics: []` when contiguous heap is too small to safely build the detailed metrics array.
 - Restart the controller, avoid repeated heavy exports, reduce large imports, and consider ESP32-S3 before adding more large features.
 
 ## LittleFS space warning
@@ -83,4 +85,4 @@ The LED data pin is configured as D3 / GPIO0. On ESP8266 boards, GPIO0 affects b
 - Confirm data direction on the LED strip.
 - Confirm the data pin matches `LED_PIN`.
 - Start with low brightness and run diagnostics LED tests before using full animations.
-- Physical LED behavior was not tested in this pass.
+- Codex performed API-level Satin Breathing soak testing at brightness 100, but did not independently observe physical LED output.

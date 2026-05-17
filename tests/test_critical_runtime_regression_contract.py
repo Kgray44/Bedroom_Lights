@@ -122,6 +122,53 @@ class CriticalRuntimeRegressionContractTests(unittest.TestCase):
         )
         self.assertIsNotNone(struct_match)
         self.assertNotIn("String", struct_match.group("body"))
+        resources_start = diagnostics.index("String buildResourcesJson()")
+        resources_body = diagnostics[resources_start:diagnostics.index("String buildDiagnosticsJson()", resources_start)]
+        self.assertRegex(
+            resources_body,
+            r'json \+= escapeJson\(fixedString\(lastMutation\.afterMode\)\);\s+json \+= R"json\("\)json";\s+json \+= R"json\(,"endpointHeapMetrics":\)json";',
+        )
+
+    def test_heavy_scene_and_backup_exports_avoid_giant_heap_strings(self):
+        scenes = self.files["ScenePresets.h"]
+        palettes = self.files["PaletteControls.h"]
+        management = self.files["ManagementControls.h"]
+
+        self.assertIn("void streamScenesJson()", scenes)
+        self.assertIn("server.setContentLength(CONTENT_LENGTH_UNKNOWN);", scenes)
+        self.assertIn("sendScenesJsonDocumentChunks(payloadBytes);", scenes)
+        self.assertIn("void streamPalettesJson()", palettes)
+        self.assertIn("server.setContentLength(CONTENT_LENGTH_UNKNOWN);", palettes)
+        self.assertIn("sendPalettesJsonDocumentChunks(payloadBytes);", palettes)
+        self.assertIn("sendScenesJsonDocumentChunks(payloadBytes);", management)
+        self.assertIn("sendPalettesJsonDocumentChunks(payloadBytes);", management)
+        self.assertIn("omittedFromBackup", management)
+        self.assertIn("full diagnostics are omitted from backup export to reduce ESP8266 heap pressure", management)
+        self.assertNotIn("sendBackupExportChunk(buildScenesJson()", management)
+        self.assertNotIn("sendBackupExportChunk(buildPalettesJson()", management)
+        self.assertNotIn("sendBackupExportChunk(buildDiagnosticsJson()", management)
+
+    def test_mutation_and_diagnostics_responses_have_low_heap_fallbacks(self):
+        web_routes = self.files["WebRoutes.h"]
+        diagnostics = self.files["Diagnostics.h"]
+
+        send_ok_start = web_routes.index("void sendJsonOk(")
+        send_ok_body = web_routes[send_ok_start:web_routes.index("void sendJsonError", send_ok_start)]
+        self.assertIn("server.setContentLength(CONTENT_LENGTH_UNKNOWN);", send_ok_body)
+        self.assertIn("server.sendContent(header);", send_ok_body)
+        self.assertIn("stateUnavailable", send_ok_body)
+        self.assertIn("retry /api/state", send_ok_body)
+
+        self.assertIn("String buildCompactDiagnosticsJson(const char* reason)", diagnostics)
+        self.assertIn("diagnosticsReduced", diagnostics)
+        self.assertIn("Full diagnostics JSON allocation failed; reduced diagnostics returned", diagnostics)
+        self.assertIn("Heap-safe compact diagnostics response on ESP8266", diagnostics)
+        self.assertIn("littleFsTotalBytes", diagnostics)
+        self.assertIn("freeSketchSpaceBytes", diagnostics)
+        self.assertIn("json.length() == 0 || json[json.length() - 1] != '}'", diagnostics)
+        self.assertIn("json.length() == 0 || json[json.length() - 1] != ']'", diagnostics)
+        self.assertIn("ESP.getMaxFreeBlockSize() < 4800", diagnostics)
+        self.assertIn("String metricsJson = buildEndpointHeapMetricsJson();", diagnostics)
 
     def test_report_documents_live_findings_and_unproven_items(self):
         report = GENERATED / "BedroomLedController_Critical_Runtime_Regression_Report.md"

@@ -47,12 +47,12 @@ Additional stabilization added after that finding:
 - Mutation paths call `canMutateFromUi(...)` so startup, failed state loading, and programmatic state application do not send `/set`, action, timer, scene, palette, or Night Guard writes.
 - If state is unavailable, the UI reports `State unavailable - controls preserved` instead of overwriting visible controls with defaults.
 
-Page refresh mutation check: statically guarded in code; browser Network-tab verification on the patched firmware is still pending.
+Page refresh mutation check: Playwright loaded and reloaded the final firmware UI. It observed 14 board requests, all read-only, with `mutationCount=0`. State remained brightness `77`, color `00AAFF`, mode `solid`, `settingsSaveStatus=saved`, and `settingsLoadStatus=loaded`.
 
 ## Verification status
 
-- Firmware compile after regression stabilization: passed for `esp8266:esp8266:d1_mini`.
-- Compile resources after regression stabilization: RAM 60,664 / 80,192 bytes (75%); IRAM 61,383 / 65,536 bytes (93%); Flash/IROM 609,228 / 1,048,576 bytes (58%).
-- Python contract tests: passed, 136 tests.
-- Browser/live patched behavior: not retested because USB upload to `COM5` was blocked by `PermissionError(13, 'Access is denied.')`.
-- Runtime heap impact: not remeasured in this pass.
+- Firmware compile after final stabilization: passed for `esp8266:esp8266:d1_mini`.
+- Compile resources after final stabilization: RAM 60,844 / 80,192 bytes (75%); IRAM 61,383 / 65,536 bytes (93%); Flash/IROM 606,044 / 1,048,576 bytes (57%).
+- Python contract tests: `python -m unittest discover -s tests -v` passed, 138 tests.
+- Browser/live patched behavior: retested with Playwright after USB upload.
+- Runtime heap after final heavy route check: `/api/resources` reported free heap 6,680 bytes, max block 5,536 bytes, fragmentation 6%, and min heap since boot 4,224 bytes.

@@ -686,14 +686,22 @@ String buildStateJson() {
 }
 
 void sendJsonOk(const String& message, const String& stateJson) {
-  String json;
-  json.reserve(stateJson.length() + message.length() + 40);
-  json += R"json({"ok":true,"message":")json";
-  json += escapeJson(message);
-  json += R"json(","state":)json";
-  json += stateJson;
-  json += F("}");
-  server.send(200, "application/json", json);
+  String header;
+  header.reserve(message.length() + 40);
+  header += R"json({"ok":true,"message":")json";
+  header += escapeJson(message);
+  header += R"json(","state":)json";
+
+  server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+  server.send(200, "application/json", "");
+  server.sendContent(header);
+  if (stateJson.length() > 0 && stateJson[stateJson.length() - 1] == '}') {
+    server.sendContent(stateJson);
+  } else {
+    server.sendContent(F("{\"ok\":false,\"stateUnavailable\":true,\"reason\":\"state JSON allocation failed; retry /api/state\"}"));
+  }
+  server.sendContent(F("}"));
+  yield();
 }
 
 void sendJsonError(int statusCode, const String& error) {

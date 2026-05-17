@@ -402,6 +402,57 @@ String buildPalettesJson() {
   return json;
 }
 
+void sendPaletteJsonContentChunk(const String& chunk, uint32_t& payloadBytes) {
+  server.sendContent(chunk);
+  payloadBytes += chunk.length();
+  yield();
+}
+
+void sendPalettesJsonDocumentChunks(uint32_t& payloadBytes) {
+  String header;
+  header.reserve(300);
+  header += R"json({"ok":true,"version":1,"paletteEnabled":)json";
+  header += boolJson(settings.paletteEnabled);
+  header += R"json(,"activePaletteId":")json";
+  header += escapeJson(settings.activePaletteId);
+  header += R"json(","activePaletteName":")json";
+  header += escapeJson(activePaletteName());
+  header += R"json(","currentModeSupportsPalette":)json";
+  header += boolJson(currentModeSupportsPalette());
+  header += R"json(,"currentModePaletteRole":")json";
+  header += escapeJson(currentModePaletteRole());
+  header += R"json(","count":)json";
+  header += paletteCount;
+  header += R"json(,"maxPalettes":)json";
+  header += MAX_PALETTES;
+  header += R"json(,"path":")json";
+  header += PALETTES_PATH;
+  header += R"json(","loadStatus":")json";
+  header += escapeJson(paletteLoadStatus);
+  header += R"json(","saveStatus":")json";
+  header += escapeJson(paletteSaveStatus);
+  header += R"json(","palettes":[)json";
+  sendPaletteJsonContentChunk(header, payloadBytes);
+
+  for (uint8_t i = 0; i < paletteCount; i++) {
+    if (i > 0) {
+      sendPaletteJsonContentChunk(F(","), payloadBytes);
+    }
+    sendPaletteJsonContentChunk(buildSinglePaletteJson(palettes[i]), payloadBytes);
+  }
+
+  sendPaletteJsonContentChunk(F("]}"), payloadBytes);
+}
+
+void streamPalettesJson() {
+  uint32_t heapBefore = beginEndpointHeapMetric("/api/palettes");
+  uint32_t payloadBytes = 0;
+  server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+  server.send(200, "application/json", "");
+  sendPalettesJsonDocumentChunks(payloadBytes);
+  finishEndpointHeapMetric("/api/palettes", heapBefore, payloadBytes);
+}
+
 String buildPaletteExportJson(const ColorPalette& palette) {
   String json;
   String paletteJson = buildSinglePaletteJson(palette);
@@ -847,10 +898,7 @@ void sendPaletteActionOk(const String& message, const String& paletteId) {
 }
 
 void handleApiPalettes() {
-  uint32_t heapBefore = beginEndpointHeapMetric("/api/palettes");
-  String json = buildPalettesJson();
-  finishEndpointHeapMetric("/api/palettes", heapBefore, json.length());
-  server.send(200, "application/json", json);
+  streamPalettesJson();
 }
 
 void handleApiPalettesSelect() {

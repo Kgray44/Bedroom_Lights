@@ -59,15 +59,18 @@ void streamBackupExportJson() {
       ",\"scenes\":"),
     payloadBytes
   );
-  sendBackupExportChunk(buildScenesJson(), payloadBytes);
+  sendScenesJsonDocumentChunks(payloadBytes);
   sendBackupExportChunk(F(",\"palettes\":"), payloadBytes);
-  sendBackupExportChunk(buildPalettesJson(), payloadBytes);
+  sendPalettesJsonDocumentChunks(payloadBytes);
   sendBackupExportChunk(F(",\"favorites\":"), payloadBytes);
   sendBackupExportChunk(buildFavoritesJson(), payloadBytes);
   sendBackupExportChunk(F(",\"schedule\":"), payloadBytes);
   sendBackupExportChunk(buildScheduleExportJson(), payloadBytes);
-  sendBackupExportChunk(F(",\"diagnostics\":"), payloadBytes);
-  sendBackupExportChunk(buildDiagnosticsJson(), payloadBytes);
+  sendBackupExportChunk(
+    F(",\"diagnostics\":{\"ok\":true,\"omittedFromBackup\":true,"
+      "\"reason\":\"Live diagnostics are available at /api/diagnostics; full diagnostics are omitted from backup export to reduce ESP8266 heap pressure\"}"),
+    payloadBytes
+  );
   sendBackupExportChunk(F("}"), payloadBytes);
 
   finishEndpointHeapMetric("/api/backup/export", heapBefore, payloadBytes);

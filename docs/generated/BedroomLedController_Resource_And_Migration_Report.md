@@ -2,123 +2,77 @@
 
 ## Final resource report
 
-This final resource report now includes compile resources and live local hardware measurements for the 140-LED D1 mini build.
-
-## Local hardware measurement pass
-
-Measurement date: 2026-05-16.
-
-- Board target used for compile: `esp8266:esp8266:d1_mini`
-- USB upload port: `COM5`
-- Board detected: ESP8266EX
-- Board MAC reported by uploader: `c8:2b:96:30:46:05`
-- Hostname reached: `http://bedroom-leds.local`
-- Live IP reached: `192.168.1.201`
-- LED count configured: 140
-- Local test default brightness: 100
-- OTA firmware upload: not performed
-- OTA page reachability: `/ota` returned HTTP 200
-- Browser updater reachability: `/update` returned HTTP 200 with credentials; no upload was performed
-- Safe LED diagnostic endpoints called: red, green, blue, whiteLow, restore
-- Physical visual LED output: not independently observed; not measured by Codex
-
-Full measurement artifact:
-
-- `docs/generated/live_hardware_measurements_2026-05-16.json`
+This report reflects the final regression-stabilized D1 mini build with 140 LEDs configured and live hardware checks performed on `2026-05-17`.
 
 ## Compile resources
 
-- Latest verified compile after UI/motion pass: passed for `esp8266:esp8266:d1_mini`.
-- RAM globals/statics: 60,312 / 80,192 bytes (75%).
-- IRAM: 61,383 / 65,536 bytes (93%).
-- Flash/IROM: 605,676 / 1,048,576 bytes (57%).
-- Live `sketchSizeBytes`: 647,552 from the prior local hardware measurement; not remeasured after the UI/motion pass.
-- Live `freeSketchSpaceBytes`: 1,445,888 from the prior local hardware measurement; not remeasured after the UI/motion pass.
+- Board target: `esp8266:esp8266:d1_mini`
+- RAM globals/statics: 60,844 / 80,192 bytes (75%)
+- IRAM: 61,383 / 65,536 bytes (93%)
+- Flash/IROM: 606,044 / 1,048,576 bytes (57%)
+- USB upload size reported by uploader: 665,808 bytes written
+- Live `sketchSizeBytes`: 665,808
+- Live `freeSketchSpaceBytes`: 1,425,408
 
-The firmware compiled successfully after the UI/motion pass. USB upload was not performed in this pass.
+IRAM remains the tightest compile resource. Future major expansion should move to ESP32-S3.
 
-## Live filesystem resources
+## Live hardware context
 
-- LittleFS total: 2,072,576 bytes.
-- LittleFS used: 49,152 bytes.
-- LittleFS free: 2,023,424 bytes.
+- USB upload port: `COM5`
+- Board detected by uploader: ESP8266EX
+- Board MAC reported by uploader: `c8:2b:96:30:46:05`
+- Live IP: `192.168.1.201`
+- Expected hostname: `bedroom-leds`
+- LED count configured: 140
+- OTA page reachability: `/ota` HTTP 200
+- Browser updater reachability: `/update` HTTP 401 without auth and HTTP 200 with local OTA credentials
+- OTA firmware upload: not performed
+- Physical LED visual output: not independently observed by Codex
 
-## Live heap snapshots
+## LittleFS
 
-| Measurement point | Free heap | Max free block | Fragmentation | Min free heap since boot |
-| --- | ---: | ---: | ---: | ---: |
-| After boot/resource check | 7,768 | 3,960 | 32% | 3,888 |
-| After main page `/` | 7,768 | 6,376 | 8% | 3,888 |
-| After `/api/state` | 7,880 | 6,720 | 5% | 3,888 |
-| After `/api/modes` | 7,736 | 6,568 | 5% | 3,888 |
-| After `/api/scenes` | 7,880 | 6,720 | 5% | 2,000 |
-| After `/api/palettes` | 7,880 | 3,992 | 33% | 2,000 |
-| After `/api/schedule` | 7,880 | 5,936 | 16% | 2,000 |
-| After `/api/backup/export` | 7,848 | 6,568 | 7% | 2,000 |
-| After control and LED-test endpoint calls | 7,880 | 6,560 | 7% | 2,000 |
-| After OTA page checks | 7,664 | 6,256 | 9% | 2,000 |
+- Total: 2,072,576 bytes
+- Used: 49,152 bytes
+- Free: 2,023,424 bytes
 
-## Endpoint heap metrics
+## Final live heap snapshots
 
-| Route | Heap before | Heap after | Route minimum | Delta | Payload bytes |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| `/api/diagnostics` | 7,848 | 3,888 | 3,888 | -3,960 | 3,496 |
-| `/` | 7,880 | 6,536 | 6,536 | -1,344 | 97,471 |
-| `/api/state` | 7,880 | 5,664 | 5,664 | -2,216 | 2,051 |
-| `/api/modes` | 7,880 | 5,264 | 5,264 | -2,616 | 18,305 |
-| `/api/scenes` | 7,880 | 2,000 | 2,000 | -5,880 | 5,509 |
-| `/api/palettes` | 7,768 | 3,936 | 3,936 | -3,832 | 2,964 |
-| `/api/schedule` | 7,880 | 7,216 | 7,216 | -664 | 323 |
-| `/api/backup/export` | 7,768 | 6,504 | 6,504 | -1,264 | 12,363 |
+After setting brightness `77`, color `00AAFF`, and mode `solid`:
 
-`/api/scenes` is the tightest measured route. It dropped the route-local heap floor to 2,000 bytes. The current build recovered afterward, but this is a serious ESP8266 margin warning.
+| Endpoint | Result | Free heap | Max block | Fragmentation | Min heap since boot |
+| --- | --- | ---: | ---: | ---: | ---: |
+| `/api/state` | valid JSON | not reported | not reported | not reported | not reported |
+| `/api/resources` before heavy routes | valid JSON | 6,536 | 5,408 | 6% | 4,224 |
+| `/api/diagnostics` | valid compact JSON | 5,488 | 4,064 | 24% | 4,224 |
+| `/api/scenes` | valid JSON | not reported | not reported | not reported | not reported |
+| `/api/palettes` | valid JSON | not reported | not reported | not reported | not reported |
+| `/api/backup/export` | valid JSON | not reported | not reported | not reported | not reported |
+| `/api/resources` after heavy routes | valid JSON | 6,680 | 5,536 | 6% | 4,224 |
 
-## Resource diagnostics behavior
+During Satin Breathing at brightness `100`:
 
-- `/api/diagnostics` parses as valid JSON after the measurement fix.
-- Detailed endpoint metrics are exposed through compact `/api/resources`.
-- `/api/diagnostics` now points to `/api/resources` for detailed endpoint metrics to avoid making the already-large diagnostics payload fail under low heap.
+| Time | Mode | Brightness | Free heap | Max block | Fragmentation | Min heap since boot |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: |
+| 11s | satinBreathing | 100 | 5,880 | 4,216 | 17% | 2,288 |
+| 22s | satinBreathing | 100 | 5,880 | 4,096 | 18% | 2,288 |
+| 33s | satinBreathing | 100 | 5,880 | 4,056 | 19% | 2,288 |
+| 43s | satinBreathing | 100 | 5,776 | 4,216 | 15% | 2,288 |
 
-## Hardware observations
+Final compact diagnostics after the soak reported free heap 4,552 bytes, max block 3,832 bytes, fragmentation 16%, min heap 2,288 bytes, reset reason `External System`, `settingsDirty=false`, and `settingsSaveStatus=saved`.
 
-- The board booted after USB upload.
-- Wi-Fi connected and hostname resolution worked through `bedroom-leds.local`.
-- Basic control endpoints returned HTTP 200.
-- Safe LED diagnostic endpoints returned HTTP 200.
-- Codex cannot visually confirm LED colors from this environment; physical LED output remains user-observed/not independently verified.
+## Endpoint hardening changes
 
-## Migration recommendation
-
-The build still works on the D1 mini, but the 140-LED configuration makes heap margin tight. Stay on the D1 mini for this completed feature set only if no major features are added and live measurements remain stable. Move to ESP32-S3 for future expansion, richer JSON routes, larger UI pages, more persistent data, sensors, physical controls, or any work that increases heap pressure.
+- `/api/scenes` is streamed instead of built as one large `String`.
+- `/api/palettes` is streamed instead of built as one large `String`.
+- `/api/backup/export` streams scenes and palettes and omits full diagnostics with `diagnostics.omittedFromBackup=true`.
+- `/api/diagnostics` now returns compact heap-safe diagnostics on ESP8266.
+- `/api/resources` returns endpoint metrics when safe and `endpointHeapMetrics: []` when contiguous heap is too small.
+- Mutation responses stream their wrapper around state so a successful update does not fail because of a second large allocation.
 
 ## UI feedback and motion smoothness pass
 
-This focused pass reduced browser-side API pressure and added central temporal smoothing without adding new lighting modes.
+The earlier UI feedback and motion smoothness pass remains included in the final resource history. It serialized startup loading, queued heavy browser requests, reduced preview polling, and added one 140 LED temporal smoothing buffer. Physical visual smoothness remains not measured by Codex.
 
-- UI startup now loads state, modes, favorites, scenes, palettes, and timer status sequentially with short spacing.
-- Heavy browser requests are queued for modes, scenes, palettes, diagnostics/resources, and full backup export.
-- Preview rendering now prefers cached state and no longer polls `/api/state` every 2.5 seconds.
-- Motion smoothing adds one `RgbPixel smoothedFrame[LED_COUNT]` buffer, approximately 420 bytes at 140 LEDs.
-- Smoothing is bypassed for diagnostics, transitions, Solid/off-style output, Strobe, Flash, and metadata-marked utility/flashing modes.
-- Compile resources after this pass: RAM 60,312 / 80,192 bytes (75%); IRAM 61,383 / 65,536 bytes (93%); Flash/IROM 605,676 / 1,048,576 bytes (57%).
-- Python contract tests after this pass: `python -m unittest discover -s tests -v` passed, 130 tests.
-- Runtime heap after this UI/motion pass: not measured.
-- Physical LED visual smoothness: not visually retested by Codex.
-- OTA firmware upload after this pass: not performed.
+## Recommendation
 
-## Critical runtime regression stabilization
-
-Live checks against the previous build on `http://bedroom-leds.local` found:
-
-- `/api/state` emitted invalid JSON due to an extra quote after `activePaletteName`.
-- `/api/diagnostics` reported live state as off: `mode=solid`, `hex=000000`, `masterBrightness=0`, `effectiveBrightness=0`.
-- Timer was inactive and schedules were empty.
-- Night Guard was disabled, with `nightGuardMaxBrightness=80`.
-- Heap was tight before the fix: one diagnostics read reported free heap around 5,688 bytes, max free block around 1,304 bytes, fragmentation around 25%, and min free heap since boot around 2,672 bytes.
-- The requested pre-fix brightness/color/mode mutation sequence timed out and was followed by a short-uptime controller reading, so the old build showed instability under live API pressure.
-
-The stabilization pass fixed the malformed state JSON, added UI hydration/mutation guards, added fixed-buffer mutation audit fields, reset temporal smoothing on major state changes, and corrected Satin Breathing's non-monotonic envelope.
-
-Post-fix compile resources: RAM 60,664 / 80,192 bytes (75%); IRAM 61,383 / 65,536 bytes (93%); Flash/IROM 609,228 / 1,048,576 bytes (58%).
-
-Post-fix runtime heap, post-fix persistence, browser refresh Network-tab mutation proof, and physical LED visual behavior still need measurement after USB upload. USB upload was attempted on `COM5` but blocked by `PermissionError(13, 'Access is denied.')`.
+Stay on the D1 mini only for this completed feature set. Do not add major features, more large API payloads, sensors, physical controls, or richer backup restore on ESP8266. Move the next major generation to ESP32-S3.

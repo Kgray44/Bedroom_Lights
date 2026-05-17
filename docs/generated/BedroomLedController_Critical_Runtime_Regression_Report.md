@@ -2,79 +2,65 @@
 
 ## Summary
 
-This pass addressed the reported runtime regressions after the UI feedback and temporal smoothing pass. It did not add lighting modes, new feature families, new hardware support, or renderer downgrades.
+This pass stabilized the runtime regressions reported after the UI feedback and temporal smoothing work. It did not add lighting modes, new feature families, new hardware support, or renderer downgrades.
 
-## Live evidence gathered before fixes
+## Root Causes Found
 
-- Controller reached at `http://bedroom-leds.local`, live IP `192.168.1.201`.
-- `/api/state` returned malformed JSON before the fix: invalid /api/state JSON was caused by `activePaletteName` emitting an extra quote before the `hex` field.
-- `/api/diagnostics` parsed and showed the live state was actually off at the time of measurement: `mode=solid`, `hex=000000`, `masterBrightness=0`, `effectiveBrightness=0`.
-- Timer and schedule checks showed no active timer and no schedules saved.
-- Live diagnostics before the fix showed tight heap: free heap around 5,688 bytes, max free block around 1,304 bytes, fragmentation around 25%, minimum free heap since boot down to 2,672 bytes.
-- During the requested mutation/persistence sequence, the brightness/color/mode requests timed out and the board later showed a fresh short uptime. That is recorded as instability under the old build, not proof that the patched build is stable.
+- The previous build had invalid /api/state JSON because `activePaletteName` wrote an extra quote before the `hex` field.
+- Browser refresh could appear to reset controls because the UI could not hydrate real state after that JSON parse failure. This was the UI-only hydration failure path.
+- Startup UI code needed explicit hydration guards so programmatic input assignments could not send mutation endpoints.
+- Satin Breathing used a non-monotonic exhale envelope, which could create sudden brightness jumps near cycle wrap.
+- Several large ESP8266 JSON endpoints could silently collapse under fragmented heap: `/api/resources` endpoint metrics, `/api/scenes`, `/api/palettes`, `/api/diagnostics`, and `/api/backup/export`.
 
-## Settings reset investigation
+## Fixes
 
-Cause: the most concrete cause found was invalid `/api/state` JSON. The Web UI could not parse state on refresh, so controls could remain at HTML defaults even when firmware state had not been loaded into the page. This is a UI-only hydration failure until a post-fix live persistence test proves otherwise.
+- Fixed `buildStateJson()` so `/api/state` parses cleanly.
+- Added `uiHydrating`, `stateLoaded`, and `canMutateFromUi(...)` guards in the Web UI.
+- Added fixed-buffer last-mutation audit fields for route, action, before/after brightness, and before/after mode.
+- Added `easeInOut01(...)` and rewrote Satin Breathing as monotonic inhale, soft hold, and monotonic exhale while preserving texture, warm blending, and palette support.
+- Reset temporal smoothing on major state changes, Off, and Warm Dim Now.
+- Streamed `/api/scenes` and `/api/palettes`.
+- Streamed backup export scene/palette sections and omitted full diagnostics from backup export with an explicit `diagnostics.omittedFromBackup=true` marker.
+- Made mutation responses stream their wrapper around state instead of allocating a larger nested JSON string.
+- Made `/api/diagnostics` a compact heap-safe response on ESP8266.
+- Made `/api/resources` omit endpoint metrics as `[]` when contiguous heap is too small.
 
-Fix:
+## Live Verification
 
-- Removed the extra quote in `buildStateJson()` after `activePaletteName`.
-- Added `uiHydrating` and `stateLoaded` guards in the Web UI.
-- Added `canMutateFromUi(...)` so startup, failed state loads, and programmatic `applyState(...)` assignments do not send mutation endpoints.
-- On state failure, the UI preserves existing controls and shows `State unavailable - controls preserved` instead of silently presenting defaults as real state.
+Final USB upload to `COM5` succeeded. The board booted at `192.168.1.201`.
 
-Page refresh mutation check: static code now restricts startup to read-only endpoints and blocks UI-origin mutations while hydrating. A browser Network-tab check on the patched firmware has not yet been performed.
-
-Persistence test result: the requested live persistence sequence could not complete on the old live firmware because mutation requests timed out. Post-fix persistence still needs to be verified after USB upload.
-
-## Random off investigation
-
-Cause: not fully proven. The live state was already off when measured. Timer and schedule were not active. Night Guard was disabled and its cap was 80, not zero. The old build had malformed state JSON, very tight heap, mutation timeouts, and a reboot/short uptime after the attempted test sequence, any of which could make the UI look stuck or make recovery unreliable.
-
-Fixes that reduce the known risks:
-
-- Valid `/api/state` JSON so the UI can hydrate correctly.
-- Mutation audit fields now record the last route/action and before/after brightness/mode in diagnostics/resources.
-- Temporal smoothing resets on mode, brightness, color, temperature, Off, and Warm Dim Now changes so old black frames do not linger after major state changes.
-- UI hydration guards prevent accidental Night Guard cap, brightness, mode, timer, or action writes during startup.
-
-Random off status: not proven fixed until the patched firmware is uploaded and observed for several minutes.
+- Persistence test: set brightness `77`, color `00AAFF`, mode `solid`; after debounce `/api/state` reported `masterBrightness=77`, `hex=00AAFF`, `mode=solid`, `settingsSaveStatus=saved`, `settingsLoadStatus=loaded`.
+- Browser refresh mutation check: Playwright loaded and reloaded `/`; 14 board requests were observed, all read-only, with `mutationCount=0`. State remained brightness `77`, color `00AAFF`, mode `solid`.
+- Heavy endpoints: `/api/state`, `/api/resources`, `/api/diagnostics`, `/api/scenes`, `/api/palettes`, and `/api/backup/export` all returned valid JSON on the final flashed build.
+- Backup export: returned 16 scenes, 10 palettes, and `diagnostics.omittedFromBackup=true`.
+- OTA capability: `/ota` returned HTTP 200; `/update` returned HTTP 401 without auth and HTTP 200 with local OTA credentials. Arduino CLI detected the network port at `192.168.1.201`. No OTA firmware upload was performed.
+- Satin Breathing API soak: ran `satinBreathing` at brightness `100` for 43 seconds. API state stayed on `satinBreathing`, timer stayed inactive, schedule count stayed 0, and resources/diagnostics stayed valid.
 
 ## Satin Breathing envelope
 
-Cause: `renderSatinBreathing()` used `sineEase8(...)` for the exhale segment. That helper is a full sine curve over the interval, so the exhale could become non-monotonic and rise again near the end of the cycle.
+The Satin Breathing envelope now uses a monotonic inhale/hold/exhale curve. The fabric texture, warm peak blending, and palette support were preserved.
 
-Fix:
+## Random Off Status
 
-- Added monotonic `easeInOut01(...)`.
-- Rewrote Satin Breathing as smooth inhale, short peak hold, and monotonic exhale.
-- Preserved fabric texture via `smoothHash8(...)`, warm peak blending, and palette support.
+Timer, schedule, and Night Guard did not appear to be the cause in live API checks. The old build showed invalid JSON and heap pressure; the final build keeps state stable through refresh and a short Satin Breathing API soak. Codex cannot visually confirm whether the LEDs physically turned off during the soak.
 
-Physical LED visual status: not yet visually retested on the real strip after this patch.
+Random off status: improved and API-soak stable, but not physically proven by Codex.
 
-## Smoothing stabilization
+Physical LED visual status: not independently observed by Codex.
 
-Central smoothing was kept but modified.
-
-- Reset smoothing on major lighting state changes.
-- Continue bypassing smoothing for Solid/off-style output, Strobe, Flash, diagnostics, transitions, and metadata-marked utility/flashing modes.
-- Off and Warm Dim Now explicitly reset smoothing before applying their target state.
-
-## Verification status
+## Verification Status
 
 - Arduino compile: passed for `esp8266:esp8266:d1_mini`.
-- Compile resources: RAM 60,664 / 80,192 bytes (75%); IRAM 61,383 / 65,536 bytes (93%); Flash/IROM 609,228 / 1,048,576 bytes (58%).
-- Arduino sketch mirror compile: passed for `esp8266:esp8266:d1_mini`.
-- Python contract tests: `python -m unittest discover -s tests -v` passed, 136 tests.
-- `node --check`: passed for the extracted Web UI script.
-- USB upload: attempted on `COM5`, but `esptool.py` reported `PermissionError(13, 'Access is denied.')`; patched firmware was not uploaded by Codex.
+- Compile resources: RAM 60,844 / 80,192 bytes (75%); IRAM 61,383 / 65,536 bytes (93%); Flash/IROM 606,044 / 1,048,576 bytes (57%).
+- USB upload: passed on `COM5`.
+- Python contract tests: `python -m unittest discover -s tests -v` passed, 138 tests.
+- `node --check` on extracted Web UI script: passed.
+- Physical LED visual test: not independently observed by Codex.
 - OTA upload: not performed.
-- Physical visual test: not performed by Codex.
 
-## Known limitations
+## Known Limits
 
-- Runtime heap remains tight on ESP8266 and must be watched after the patched upload.
-- The old live firmware timed out during the API mutation test; post-fix API mutation/persistence behavior still needs a fresh live run.
-- Random-off root cause is narrowed away from timer/schedule/Night Guard based on live reads, but not fully proven until mutation audit data is collected after upload.
-- Browser refresh Network-tab proof still needs to be run on the patched firmware after USB upload succeeds.
+- Runtime heap is still tight on D1 mini, especially with 140 LEDs and large web/API responses.
+- `/api/diagnostics` is intentionally compact on ESP8266; use `/api/resources` for endpoint/resource metrics.
+- Endpoint metrics may be returned as `[]` when contiguous heap is too small.
+- OTA browser updater reachability was tested, but OTA firmware upload was not performed.

@@ -63,13 +63,15 @@ No layered waves, shimmer, palette blending, Gaussian falloffs, ribbon logic, or
 
 ## Physical LED visual status: not visually retested in this pass
 
-The code compiles after verification, but Codex did not visually observe the real LED strip during this pass. Do not treat the smoothing as physically confirmed until the user uploads and watches Solid, Rain Glass, Velvet Aurora, Dream Aquarium, Quiet Northern Lights, Satin Breathing, Paper Lantern Row, Storm Outside, Slow Pulse, and Slow Wave at brightness 100.
+The final firmware was uploaded over USB and Satin Breathing was run at brightness 100 for a 43 second API soak. API state stayed on `satinBreathing`, timer remained inactive, schedule count remained 0, and resources/diagnostics stayed valid.
+
+Codex still did not independently observe the physical LED strip, so the Satin Breathing visual smoothness is not claimed as visually confirmed by Codex.
 
 ## Resource status
 
 - Static RAM impact: one extra 140 LED RGB buffer, approximately 420 bytes. Compile RAM globals/statics rose from the previous 59,896 bytes to 60,312 bytes.
-- Compile resources after regression stabilization: RAM 60,664 / 80,192 bytes (75%); IRAM 61,383 / 65,536 bytes (93%); Flash/IROM 609,228 / 1,048,576 bytes (58%).
-- Python contract tests: passed, 136 tests.
-- Runtime heap impact: not remeasured in this pass.
-- USB upload after the regression fix was attempted but blocked by COM5 access denied.
-- OTA behavior: not retested in this pass.
+- Compile resources after final stabilization: RAM 60,844 / 80,192 bytes (75%); IRAM 61,383 / 65,536 bytes (93%); Flash/IROM 606,044 / 1,048,576 bytes (57%).
+- Python contract tests: passed, 138 tests.
+- Runtime heap during final Satin Breathing API soak: min heap since boot 2,288 bytes; final compact diagnostics reported free heap 4,552 bytes and max block 3,832 bytes.
+- USB upload after the regression fix: passed on COM5.
+- OTA capability: `/ota` and authenticated `/update` reachable; OTA firmware upload not performed.

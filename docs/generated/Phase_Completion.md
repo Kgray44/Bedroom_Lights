@@ -566,6 +566,29 @@ Verification status:
 - Physical LED visual behavior: not claimed unless separately observed after upload.
 - OTA firmware upload: not performed.
 
+## Critical Runtime Regression Stabilization - Live Upload Follow-up
+
+Main fixes added after live hardware measurement:
+
+- Re-uploaded the patched firmware successfully over USB on `COM5`.
+- Found and fixed live heap-related JSON failures in `/api/resources`, `/api/scenes`, `/api/palettes`, `/api/diagnostics`, and `/api/backup/export`.
+- Streamed `/api/scenes` and `/api/palettes`.
+- Made backup export stream scenes/palettes and omit full diagnostics with `diagnostics.omittedFromBackup=true`.
+- Made `/api/diagnostics` compact by default on ESP8266.
+- Made `/api/resources` return `endpointHeapMetrics: []` when contiguous heap is too small.
+- Verified browser refresh with Playwright: 14 board requests, all read-only, `mutationCount=0`.
+- Verified persistence on final firmware: brightness `77`, color `00AAFF`, mode `solid`, save/load status good.
+- Verified Satin Breathing API soak at brightness `100` for 43 seconds with timer inactive and schedule count 0.
+- Verified OTA capability reachability: `/ota` HTTP 200; `/update` HTTP 401 without auth and HTTP 200 with local credentials. OTA firmware upload was not performed.
+
+Verification status:
+
+- Worktree firmware compile for `esp8266:esp8266:d1_mini`: passed.
+- USB upload on `COM5`: passed.
+- Final measured resources: RAM 60,844 / 80,192 bytes (75%); IRAM 61,383 / 65,536 bytes (93%); flash 606,044 / 1,048,576 bytes (57%).
+- Runtime heap during Satin Breathing API soak: min heap since boot 2,288 bytes; final compact diagnostics free heap 4,552 bytes, max block 3,832 bytes.
+- Physical LED visual behavior: not independently observed by Codex.
+
 ## Phase 4C - Remaining Mode Library Batch 2
 
 Main additions:

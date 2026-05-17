@@ -570,6 +570,9 @@ String buildEndpointHeapMetricsJson() {
     json += '}';
   }
   json += ']';
+  if (json.length() == 0 || json[json.length() - 1] != ']') {
+    return String("[]");
+  }
   return json;
 }
 
@@ -629,8 +632,18 @@ String buildResourcesJson() {
   json += escapeJson(fixedString(lastMutation.beforeMode));
   json += R"json(","lastMutationAfterMode":")json";
   json += escapeJson(fixedString(lastMutation.afterMode));
+  json += R"json(")json";
   json += R"json(,"endpointHeapMetrics":)json";
-  json += buildEndpointHeapMetricsJson();
+  if (ESP.getMaxFreeBlockSize() < 4800) {
+    json += F("[]");
+  } else {
+    String metricsJson = buildEndpointHeapMetricsJson();
+    if (metricsJson.length() > 0 && metricsJson[metricsJson.length() - 1] == ']') {
+      json += metricsJson;
+    } else {
+      json += F("[]");
+    }
+  }
   json += F("}");
   return json;
 }
@@ -892,13 +905,93 @@ String buildDiagnosticsJson() {
   return json;
 }
 
+String buildCompactDiagnosticsJson(const char* reason) {
+  updateResourceStats();
+  FSInfo fsInfo;
+  bool fsInfoAvailable = settingsStorageReady && LittleFS.info(fsInfo);
+
+  String json;
+  json.reserve(1200);
+  json += R"json({"ok":true,"diagnosticsReduced":true,"reason":")json";
+  json += escapeJson(reason);
+  json += R"json(","hostname":")json";
+  json += escapeJson(DEVICE_HOSTNAME);
+  json += R"json(","ip":")json";
+  json += escapeJson(ipAddressString());
+  json += R"json(","uptimeMs":)json";
+  json += millis();
+  json += R"json(,"freeHeap":)json";
+  json += ESP.getFreeHeap();
+  json += R"json(,"maxFreeBlockSize":)json";
+  json += ESP.getMaxFreeBlockSize();
+  json += R"json(,"heapFragmentationPercent":)json";
+  json += ESP.getHeapFragmentation();
+  json += R"json(,"minFreeHeapSinceBoot":)json";
+  json += minFreeHeapSeen;
+  json += R"json(,"sketchSizeBytes":)json";
+  json += ESP.getSketchSize();
+  json += R"json(,"freeSketchSpaceBytes":)json";
+  json += ESP.getFreeSketchSpace();
+  json += R"json(,"littleFsMeasured":)json";
+  json += boolJson(fsInfoAvailable);
+  json += R"json(,"littleFsTotalBytes":)json";
+  json += fsInfoAvailable ? fsInfo.totalBytes : 0;
+  json += R"json(,"littleFsUsedBytes":)json";
+  json += fsInfoAvailable ? fsInfo.usedBytes : 0;
+  json += R"json(,"littleFsFreeBytes":)json";
+  json += fsInfoAvailable && fsInfo.totalBytes >= fsInfo.usedBytes ? fsInfo.totalBytes - fsInfo.usedBytes : 0;
+  json += R"json(,"resetReason":")json";
+  json += escapeJson(ESP.getResetReason());
+  json += R"json(","mode":")json";
+  json += modeKey(settings.mode);
+  json += R"json(","colorHex":"#)json";
+  json += colorHexString();
+  json += R"json(","masterBrightness":)json";
+  json += settings.masterBrightness;
+  json += R"json(,"effectiveBrightness":)json";
+  json += getEffectiveBrightness();
+  json += R"json(,"settingsDirty":)json";
+  json += boolJson(settingsDirty);
+  json += R"json(,"settingsLoadStatus":")json";
+  json += escapeJson(settingsLoadStatus);
+  json += R"json(","settingsSaveStatus":")json";
+  json += escapeJson(settingsSaveStatus);
+  json += R"json(","lastSettingsSaveMs":)json";
+  json += lastSettingsSaveMs;
+  json += R"json(,"lastMutationRoute":")json";
+  json += escapeJson(fixedString(lastMutation.route));
+  json += R"json(","lastMutationAction":")json";
+  json += escapeJson(fixedString(lastMutation.action));
+  json += R"json(","lastMutationMs":)json";
+  json += lastMutation.atMs;
+  json += R"json(,"timerActive":)json";
+  json += boolJson(activeTimer.active);
+  json += R"json(,"timerAction":")json";
+  json += timerActionKey(activeTimer.action);
+  json += R"json(","scheduleCount":)json";
+  json += scheduleCount;
+  json += R"json(,"nextScheduleSummary":")json";
+  json += escapeJson(nextScheduleSummary());
+  json += R"json(","lastScheduleStatus":")json";
+  json += escapeJson(lastScheduleStatus);
+  json += R"json(","nightGuardEnabled":)json";
+  json += boolJson(settings.nightGuardEnabled);
+  json += R"json(,"nightGuardMaxBrightness":)json";
+  json += settings.nightGuardMaxBrightness;
+  json += F("}");
+  return json;
+}
+
 void handleDiagnosticsPage() {
   server.send_P(200, PSTR("text/html"), DIAGNOSTICS_HTML);
 }
 
 void handleApiDiagnostics() {
   uint32_t heapBefore = beginEndpointHeapMetric("/api/diagnostics");
-  String json = buildDiagnosticsJson();
+  String json = buildCompactDiagnosticsJson("Heap-safe compact diagnostics response on ESP8266");
+  if (json.length() == 0 || json[json.length() - 1] != '}') {
+    json = buildCompactDiagnosticsJson("Full diagnostics JSON allocation failed; reduced diagnostics returned");
+  }
   finishEndpointHeapMetric("/api/diagnostics", heapBefore, json.length());
   server.send(200, "application/json", json);
 }

@@ -1,92 +1,65 @@
 # BedroomLedController Final Report
 
-The project now implements a local-first D1 mini / ESP8266 bedroom LED controller with web UI, OTA support, diagnostics, settings persistence, scenes, favorites, Night Guard, timers, bedtime fade, smooth transitions, palettes, browser preview, Surprise Me, schedule automation, scene links, a full mode library, final management tools, and a release hardening pass.
-
-Compiled and uploaded successfully over USB to the D1 mini / ESP8266 target with 140 LEDs configured. Safe LED diagnostic endpoints were called, but physical visual LED output was not independently observed or measured by Codex.
-
-## Final feature set
-
-- Local web UI served directly from the ESP8266.
-- WS2812 output through the central frame buffer and output pipeline.
-- Settings persistence in LittleFS.
-- Scene save/load/rename/delete/duplicate/export/import and built-in restore.
-- Palette builder, palette selection, palette export/import, and built-in palette restore.
-- Favorites and quick actions.
-- Night Guard brightness and flashing-mode protection.
-- Timers, bedtime fade, and schedule automation.
-- Browser-side preview without server-side LED frame streaming.
-- Surprise Me scene generation.
-- OTA page and browser updater route.
-- Diagnostics, power estimate, and local API docs.
-- Full backup export and guarded backup-import schema validation.
+The project implements a local-first D1 mini / ESP8266 bedroom LED controller with a 140 LED WS2812 / NeoPixel strip, ESP-hosted web UI, OTA support, diagnostics, settings persistence, scenes, favorites, Night Guard, timers, bedtime fade, transitions, palettes, browser preview, Surprise Me, schedule automation, scene links, full mode library, and management/export tools.
 
 ## D1 mini vs ESP32-S3 final recommendation
 
-Stay on the D1 mini for this completed build because it still compiles, uploads, boots, and serves the web API with 140 LEDs configured. Do not keep expanding this firmware aggressively on ESP8266: IRAM is 93%, RAM globals/statics are 74%, and live heap measurements showed only a 2,000 byte route-local heap floor during `/api/scenes`. Move to ESP32-S3 for the next major hardware generation, especially if adding sensors, physical controls, richer backup restore, larger UI pages, or more diagnostics.
+Stay on D1 mini for the current build only. Move future feature expansion to ESP32-S3.
 
 ## Finalization / Hardening Pass
 
-- Moved Wi-Fi and OTA credentials out of tracked source and added `Secrets.example.h`.
-- Added root `README.md` with first-time setup, safety notes, test/build commands, and generated doc links.
-- Added runtime resource diagnostics for free heap, largest free block, heap fragmentation, minimum free heap since boot, sketch size, free sketch space, and LittleFS capacity.
-- Added endpoint resource tracking for the main page and heavy API routes.
-- Added chunked JSON output for `/api/modes` and `/api/backup/export`.
-- Migrated selected long-lived fields to fixed char buffers: `FavoriteItem` id/label/type/target and `TimeSyncState.timeStatus`.
-- Preserved public route names, JSON field names, and storage field names for the changed data.
-- Preserved the central render/output pipeline and did not downgrade renderer math or add lighting modes.
-- OTA upload behavior was not retested.
-- USB upload over `COM5` was tested successfully.
-- `/ota` and authenticated `/update` page reachability were tested successfully; no OTA upload was performed.
-- Safe LED diagnostic endpoints were called; physical visual LED output was not independently observed.
+- Wi-Fi and OTA credentials were moved out of tracked source into ignored `Secrets.h`; `Secrets.example.h` remains tracked.
+- Root `README.md` documents setup, safety, D3/GPIO0 warning, build/test commands, and generated docs.
+- Runtime resource diagnostics report heap, max free block, fragmentation, sketch size, free sketch space, and LittleFS usage.
+- Endpoint resource tracking is exposed when heap allows it.
+- Heavy JSON endpoints were made safer: `/api/modes` was already streamed; `/api/scenes` and `/api/palettes` now stream; backup export streams large sections and omits full diagnostics.
+- Long-lived fixed-buffer audit fields record the last mutation without `String`.
+- Central render/output flow was preserved: frame buffer, calibration, effective brightness/Night Guard cap, gamma, pixel write, and central `strip.show()`.
+- Mode renderer quality was preserved; Satin Breathing's envelope was fixed without removing fabric texture, warm peak blending, or palette support.
 
-## Final measured compile resources
+## Critical Runtime Regression Stabilization
 
-- Board target: `esp8266:esp8266:d1_mini`
-- RAM globals/statics: 60,312 / 80,192 bytes (75%).
-- IRAM: 61,383 / 65,536 bytes (93%).
-- Flash/IROM: 605,676 / 1,048,576 bytes (57%).
-- LittleFS usage: 49,152 / 2,072,576 bytes used; 2,023,424 bytes free.
-- Runtime free heap after boot/resource check: 7,768 bytes.
-- Lowest measured route-local heap floor: 2,000 bytes during `/api/scenes`.
-- Python contract tests: `python -m unittest discover -s tests -v` passed, 130 tests.
-- Physical visual LED behavior: not independently observed; not measured by Codex.
-
-## Known limits
-
-- Full backup export works, but full backup import validates schema only and does not apply a bulk restore.
-- Runtime heap after large API calls was measured on hardware; `/api/scenes` is the tightest route.
-- OTA page reachability was tested, but OTA firmware upload was not performed.
-- Physical LED test endpoints were called, but visual LED output was not independently observed by Codex.
+- Fixed malformed `/api/state` JSON that could make refresh look like it reset controls.
+- Added Web UI hydration/state guards so page load and `applyState(...)` cannot send mutation endpoints.
+- Added valid low-heap fallbacks for mutation responses, resources, diagnostics, scenes, palettes, and backup export.
+- Playwright page refresh check on the final firmware observed 14 read-only requests and `mutationCount=0`.
+- Persistence check on the final firmware saved and re-read brightness `77`, color `00AAFF`, and mode `solid`.
+- Satin Breathing API soak at brightness `100` stayed on `satinBreathing` for 43 seconds with timer inactive and schedule count 0.
 
 ## UI Feedback + Motion Smoothness Pass
 
-- Added a global UI status banner plus per-action pending/success/error feedback for common controls.
-- Added a central browser `apiFetchJson(...)` helper with timeout, retry, invalid JSON handling, and console diagnostics.
-- Serialized initial UI loading so the ESP8266 is not hit with state, modes, palettes, scenes, favorites, timer, and preview requests at once.
-- Added browser-side queuing for heavy endpoints and quieter preview behavior based on cached state.
-- Fixed empty-vs-unavailable messaging for favorites, scenes, and palettes, with retry buttons for failed sections.
-- Hardened Surprise Me so it cannot stay stuck on the choosing state after timeout, invalid JSON, or controller failure.
-- Hardened Night Guard UI state so successful updates refresh the visible enabled/off/capped message.
-- Added a single central temporal smoothing buffer and bounded per-channel smoothing for ambient animated modes.
-- Added interpolated hash texture for selected procedural texture terms that could step between time buckets.
-- Preserved the central output pipeline, Night Guard cap, gamma correction, RGB calibration, and mode renderer quality.
-- Firmware compile after this pass: passed for `esp8266:esp8266:d1_mini`.
-- Latest compile resources: RAM 60,312 / 80,192 bytes (75%); IRAM 61,383 / 65,536 bytes (93%); Flash/IROM 605,676 / 1,048,576 bytes (57%).
-- Python tests: `python -m unittest discover -s tests -v` passed, 130 tests.
-- Physical LED visual smoothing and OTA firmware upload were not retested by Codex in this pass.
+This pass remains part of the final release history: startup loading is serialized, heavy UI requests are queued, browser preview uses cached state, and temporal smoothing is bounded and bypassed for utility/flashing/diagnostic output.
 
-## Critical Runtime Regression Stabilization Pass
+## Final measured status
 
-- Found live `/api/state` JSON corruption in the previous build: `activePaletteName` emitted an extra quote before `hex`.
-- Fixed the state JSON builder so refresh can hydrate real controller state instead of leaving controls at HTML defaults.
-- Added Web UI hydration and `stateLoaded` guards so page load and `applyState(...)` assignments cannot send mutation endpoints.
-- Added a small fixed-buffer mutation audit exposed through diagnostics/resources for the last route/action and before/after brightness/mode.
-- Fixed Satin Breathing by replacing the non-monotonic exhale helper with monotonic `easeInOut01(...)`.
-- Kept temporal smoothing but reset its buffer on major lighting changes, Off, and Warm Dim Now.
-- Firmware compile after this pass: passed for `esp8266:esp8266:d1_mini`.
-- Latest compile resources: RAM 60,664 / 80,192 bytes (75%); IRAM 61,383 / 65,536 bytes (93%); Flash/IROM 609,228 / 1,048,576 bytes (58%).
-- Python tests: `python -m unittest discover -s tests -v` passed, 136 tests.
-- Live pre-fix checks found timer inactive, no schedules saved, Night Guard disabled, Night Guard cap 80, and tight heap. The random-off root cause is not fully proven until the patched firmware is uploaded and observed.
-- USB upload on `COM5` was attempted but blocked by `PermissionError(13, 'Access is denied.')`; patched firmware was not uploaded by Codex.
-- OTA upload was not performed in this pass.
-- Physical LED visual behavior was not independently observed by Codex in this pass.
+- Compile target: `esp8266:esp8266:d1_mini`
+- RAM globals/statics: 60,844 / 80,192 bytes (75%)
+- IRAM: 61,383 / 65,536 bytes (93%)
+- Flash/IROM: 606,044 / 1,048,576 bytes (57%)
+- USB upload: passed on `COM5`
+- Live IP: `192.168.1.201`
+- LittleFS: 49,152 / 2,072,576 bytes used
+- Lowest measured heap during final Satin Breathing soak: 2,288 bytes since boot
+- OTA page: `/ota` HTTP 200
+- Browser updater: `/update` HTTP 401 without auth, HTTP 200 with local OTA credentials
+- OTA firmware upload: not performed
+- Physical LED visual behavior: not independently observed by Codex
+- Long-duration physical visual behavior: not measured by Codex
+
+## Tests
+
+- Focused critical regression contract tests passed.
+- Full Python contract suite passed: `python -m unittest discover -s tests -v`, 138 tests.
+- Web UI JavaScript syntax passed with `node --check` on the extracted script.
+
+## Known limits
+
+- ESP8266 heap remains tight with 140 LEDs and this feature set.
+- `/api/diagnostics` is compact by design on ESP8266; use `/api/resources` for live resource details.
+- `/api/resources` may return `endpointHeapMetrics: []` when contiguous heap is too small.
+- Full backup import still validates schema only and does not apply a bulk restore.
+- OTA capability was reachability/auth tested; an OTA firmware upload was not performed.
+
+## Recommendation
+
+Stay on D1 mini for the current build only. Move future feature expansion to ESP32-S3.

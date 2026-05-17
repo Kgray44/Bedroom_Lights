@@ -330,6 +330,47 @@ String buildScenesJson() {
   return json;
 }
 
+void sendJsonContentChunk(const String& chunk, uint32_t& payloadBytes) {
+  server.sendContent(chunk);
+  payloadBytes += chunk.length();
+  yield();
+}
+
+void sendScenesJsonDocumentChunks(uint32_t& payloadBytes) {
+  String header;
+  header.reserve(220);
+  header += F("{\"ok\":true,\"version\":1,\"count\":");
+  header += sceneCount;
+  header += F(",\"maxScenes\":");
+  header += MAX_SCENES;
+  header += F(",\"path\":\"");
+  header += SCENES_PATH;
+  header += F("\",\"loadStatus\":\"");
+  header += escapeJson(sceneLoadStatus);
+  header += F("\",\"saveStatus\":\"");
+  header += escapeJson(sceneSaveStatus);
+  header += F("\",\"scenes\":[");
+  sendJsonContentChunk(header, payloadBytes);
+
+  for (uint8_t i = 0; i < sceneCount; i++) {
+    if (i > 0) {
+      sendJsonContentChunk(F(","), payloadBytes);
+    }
+    sendJsonContentChunk(buildSingleSceneJson(scenes[i]), payloadBytes);
+  }
+
+  sendJsonContentChunk(F("]}"), payloadBytes);
+}
+
+void streamScenesJson() {
+  uint32_t heapBefore = beginEndpointHeapMetric("/api/scenes");
+  uint32_t payloadBytes = 0;
+  server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+  server.send(200, "application/json", "");
+  sendScenesJsonDocumentChunks(payloadBytes);
+  finishEndpointHeapMetric("/api/scenes", heapBefore, payloadBytes);
+}
+
 bool saveScenes() {
   if (!settingsStorageReady) {
     sceneSaveStatus = "skipped; LittleFS unavailable";
@@ -819,10 +860,7 @@ void sendSceneActionOk(const String& message, const String& sceneId) {
 }
 
 void handleApiScenes() {
-  uint32_t heapBefore = beginEndpointHeapMetric("/api/scenes");
-  String json = buildScenesJson();
-  finishEndpointHeapMetric("/api/scenes", heapBefore, json.length());
-  server.send(200, "application/json", json);
+  streamScenesJson();
 }
 
 void handleApiScenesSave() {
