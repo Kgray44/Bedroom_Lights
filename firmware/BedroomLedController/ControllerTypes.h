@@ -136,6 +136,15 @@ struct DiagnosticTestState {
   uint16_t pixelIndex;
 };
 
+struct EndpointHeapMetric {
+  char route[40];
+  uint32_t measuredAtMs;
+  uint32_t heapBeforeBytes;
+  uint32_t heapAfterBytes;
+  uint32_t heapMinimumBytes;
+  uint32_t payloadBytes;
+};
+
 struct PowerEstimate {
   uint32_t maxLedCurrentMilliamps;
   uint32_t maxLedPowerMilliwatts;
@@ -174,10 +183,10 @@ struct ScenePreset {
 };
 
 struct FavoriteItem {
-  String id;
-  String label;
-  String type;
-  String target;
+  char id[MAX_FAVORITE_ID_LENGTH + 1];
+  char label[MAX_FAVORITE_LABEL_LENGTH + 1];
+  char type[12];
+  char target[MAX_FAVORITE_TARGET_LENGTH + 1];
 };
 
 struct TimeSyncState {
@@ -187,7 +196,7 @@ struct TimeSyncState {
   uint32_t lastSyncSuccessMs;
   uint32_t lastSyncFailureMs;
   uint32_t lastSyncSuccessEpoch;
-  String timeStatus;
+  char timeStatus[64];
 };
 
 struct ScheduleEntry {

@@ -3,6 +3,14 @@
 
 const uint32_t VALID_EPOCH_MINIMUM = 1609459200UL;
 
+void setTimeStatus(const char* status) {
+  copyFixedCString(timeSync.timeStatus, sizeof(timeSync.timeStatus), status);
+}
+
+void setTimeStatus(const String& status) {
+  copyFixedString(timeSync.timeStatus, sizeof(timeSync.timeStatus), status);
+}
+
 String cleanScheduleName(const String& value) {
   String name = value;
   name.trim();
@@ -167,7 +175,7 @@ bool isTimeSynced() {
     if (!timeSync.timeSynced) {
       timeSync.lastSyncSuccessEpoch = static_cast<uint32_t>(epoch);
       timeSync.lastSyncSuccessMs = millis();
-      timeSync.timeStatus = "synced";
+      setTimeStatus("synced");
     }
     timeSync.timeSynced = true;
     return true;
@@ -180,14 +188,14 @@ void beginTimeSync(bool manual) {
   if (WiFi.status() != WL_CONNECTED) {
     timeSync.timeSynced = false;
     timeSync.lastSyncFailureMs = millis();
-    timeSync.timeStatus = manual ? "manual sync unavailable; Wi-Fi offline" : "waiting for Wi-Fi before time sync";
+    setTimeStatus(manual ? "manual sync unavailable; Wi-Fi offline" : "waiting for Wi-Fi before time sync");
     return;
   }
 
   configTime(0, 0, "pool.ntp.org", "time.nist.gov");
   timeSync.syncRequested = true;
   timeSync.lastSyncAttemptMs = millis();
-  timeSync.timeStatus = manual ? "manual sync requested" : "sync requested";
+  setTimeStatus(manual ? "manual sync requested" : "sync requested");
 }
 
 void serviceTimeSync() {
@@ -203,15 +211,15 @@ void serviceTimeSync() {
   }
 
   if (WiFi.status() != WL_CONNECTED) {
-    timeSync.timeStatus = "not synced; Wi-Fi offline";
+    setTimeStatus("not synced; Wi-Fi offline");
     return;
   }
 
   if (timeSync.lastSyncAttemptMs == 0 ||
       (uint32_t)(nowMs - timeSync.lastSyncAttemptMs) >= TIME_SYNC_RETRY_MS) {
     beginTimeSync(false);
-  } else if (timeSync.timeStatus.length() == 0) {
-    timeSync.timeStatus = "sync pending";
+  } else if (strlen(timeSync.timeStatus) == 0) {
+    setTimeStatus("sync pending");
   }
 }
 
@@ -342,7 +350,7 @@ String buildTimeJson() {
   json += R"json(","localUtcOffsetMinutes":)json";
   json += settings.localUtcOffsetMinutes;
   json += R"json(,"timeStatus":")json";
-  json += escapeJson(timeSync.timeStatus);
+  json += escapeJson(fixedString(timeSync.timeStatus));
   json += R"json(","lastSyncAttemptMs":)json";
   json += timeSync.lastSyncAttemptMs;
   json += R"json(,"lastSyncSuccessEpoch":)json";
@@ -824,7 +832,10 @@ void handleApiTimeSet() {
 }
 
 void handleApiSchedule() {
-  server.send(200, "application/json", buildScheduleJson());
+  uint32_t heapBefore = beginEndpointHeapMetric("/api/schedule");
+  String json = buildScheduleJson();
+  finishEndpointHeapMetric("/api/schedule", heapBefore, json.length());
+  server.send(200, "application/json", json);
 }
 
 bool scheduleFromRequest(ScheduleEntry& entry, String& error) {

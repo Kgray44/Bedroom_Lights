@@ -91,4 +91,31 @@ bool extractFirstJsonObject(const String& json, String& objectJson) {
   return true;
 }
 
+void copyFixedCString(char* destination, size_t destinationSize, const char* value) {
+  if (destination == nullptr || destinationSize == 0) {
+    return;
+  }
+  if (value == nullptr) {
+    destination[0] = '\0';
+    return;
+  }
+  strncpy(destination, value, destinationSize - 1);
+  destination[destinationSize - 1] = '\0';
+}
+
+void copyFixedString(char* destination, size_t destinationSize, const String& value) {
+  copyFixedCString(destination, destinationSize, value.c_str());
+}
+
+bool fixedEquals(const char* value, const String& expected) {
+  if (value == nullptr) {
+    return expected.length() == 0;
+  }
+  return strcmp(value, expected.c_str()) == 0;
+}
+
+String fixedString(const char* value) {
+  return value == nullptr ? String("") : String(value);
+}
+
 #endif

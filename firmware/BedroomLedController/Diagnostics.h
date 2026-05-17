@@ -491,6 +491,86 @@ String buildPowerJson() {
   return json;
 }
 
+void noteFreeHeap(uint32_t freeHeap) {
+  if (minFreeHeapSeen == 0 || freeHeap < minFreeHeapSeen) {
+    minFreeHeapSeen = freeHeap;
+  }
+}
+
+void updateResourceStats() {
+  uint32_t nowMs = millis();
+  if (resourceStatsLastSampleMs == 0 ||
+      (uint32_t)(nowMs - resourceStatsLastSampleMs) >= 1000UL) {
+    noteFreeHeap(ESP.getFreeHeap());
+    resourceStatsLastSampleMs = nowMs;
+  }
+}
+
+uint32_t beginEndpointHeapMetric(const char* route) {
+  uint32_t heapBefore = ESP.getFreeHeap();
+  noteFreeHeap(heapBefore);
+  return heapBefore;
+}
+
+int findEndpointHeapMetric(const char* route) {
+  for (uint8_t i = 0; i < endpointHeapMetricCount; i++) {
+    if (strncmp(endpointHeapMetrics[i].route, route, sizeof(endpointHeapMetrics[i].route)) == 0) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+void finishEndpointHeapMetric(const char* route, uint32_t heapBeforeBytes, uint32_t payloadBytes) {
+  uint32_t heapAfter = ESP.getFreeHeap();
+  noteFreeHeap(heapAfter);
+
+  int index = findEndpointHeapMetric(route);
+  if (index < 0) {
+    index = endpointHeapMetricCount < MAX_ENDPOINT_HEAP_METRICS
+      ? endpointHeapMetricCount++
+      : MAX_ENDPOINT_HEAP_METRICS - 1;
+  }
+
+  EndpointHeapMetric& metric = endpointHeapMetrics[index];
+  copyFixedCString(metric.route, sizeof(metric.route), route);
+  metric.measuredAtMs = millis();
+  metric.heapBeforeBytes = heapBeforeBytes;
+  metric.heapAfterBytes = heapAfter;
+  metric.heapMinimumBytes = min(heapBeforeBytes, heapAfter);
+  metric.payloadBytes = payloadBytes;
+}
+
+String buildEndpointHeapMetricsJson() {
+  String json;
+  json.reserve(120 + endpointHeapMetricCount * 180);
+  json += '[';
+  for (uint8_t i = 0; i < endpointHeapMetricCount; i++) {
+    if (i > 0) {
+      json += ',';
+    }
+    int32_t delta = static_cast<int32_t>(endpointHeapMetrics[i].heapAfterBytes) -
+                    static_cast<int32_t>(endpointHeapMetrics[i].heapBeforeBytes);
+    json += R"json({"route":")json";
+    json += escapeJson(String(endpointHeapMetrics[i].route));
+    json += R"json(","measuredAtMs":)json";
+    json += endpointHeapMetrics[i].measuredAtMs;
+    json += R"json(,"heapBeforeBytes":)json";
+    json += endpointHeapMetrics[i].heapBeforeBytes;
+    json += R"json(,"heapAfterBytes":)json";
+    json += endpointHeapMetrics[i].heapAfterBytes;
+    json += R"json(,"heapMinimumBytes":)json";
+    json += endpointHeapMetrics[i].heapMinimumBytes;
+    json += R"json(,"heapDeltaBytes":)json";
+    json += delta;
+    json += R"json(,"payloadBytes":)json";
+    json += endpointHeapMetrics[i].payloadBytes;
+    json += '}';
+  }
+  json += ']';
+  return json;
+}
+
 String buildDiagnosticsJson() {
   PowerEstimate estimate = buildPowerEstimate();
   String ssid = WiFi.status() == WL_CONNECTED ? WiFi.SSID() : String("");
@@ -498,8 +578,10 @@ String buildDiagnosticsJson() {
   String category = modeCategory(settings.mode);
   FSInfo fsInfo;
   bool fsInfoAvailable = settingsStorageReady && LittleFS.info(fsInfo);
+  uint32_t freeHeapNow = ESP.getFreeHeap();
+  noteFreeHeap(freeHeapNow);
   String json;
-  json.reserve(3520);
+  json.reserve(3940);
   json += R"json({"ok":true)json";
   json += R"json(,"projectVersion":"Phase 4D")json";
   json += R"json(,"boardTarget":"esp8266:esp8266:d1_mini")json";
@@ -516,7 +598,15 @@ String buildDiagnosticsJson() {
   json += R"json(,"uptimeMs":)json";
   json += millis();
   json += R"json(,"freeHeap":)json";
-  json += ESP.getFreeHeap();
+  json += freeHeapNow;
+  json += R"json(,"freeHeapNow":)json";
+  json += freeHeapNow;
+  json += R"json(,"maxFreeBlockSize":)json";
+  json += ESP.getMaxFreeBlockSize();
+  json += R"json(,"heapFragmentationPercent":)json";
+  json += ESP.getHeapFragmentation();
+  json += R"json(,"minFreeHeapSinceBoot":)json";
+  json += minFreeHeapSeen;
   json += R"json(,"sketchSizeBytes":)json";
   json += ESP.getSketchSize();
   json += R"json(,"freeSketchSpaceBytes":)json";
@@ -717,6 +807,8 @@ String buildDiagnosticsJson() {
   json += estimate.recommendedBrightnessCap;
   json += R"json(,"warnings":)json";
   json += buildWarningsJson(estimate);
+  json += R"json(,"endpointHeapMetrics":)json";
+  json += buildEndpointHeapMetricsJson();
   json += F("}");
   return json;
 }
@@ -726,7 +818,10 @@ void handleDiagnosticsPage() {
 }
 
 void handleApiDiagnostics() {
-  server.send(200, "application/json", buildDiagnosticsJson());
+  uint32_t heapBefore = beginEndpointHeapMetric("/api/diagnostics");
+  String json = buildDiagnosticsJson();
+  finishEndpointHeapMetric("/api/diagnostics", heapBefore, json.length());
+  server.send(200, "application/json", json);
 }
 
 void handleApiPower() {

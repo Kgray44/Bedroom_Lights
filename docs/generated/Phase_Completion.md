@@ -392,6 +392,38 @@ Verification status:
 - Runtime free heap, Free heap after /api/schedule, LittleFS usage, OTA behavior, web responsiveness, animation responsiveness, and physical LED behavior: not measured.
 - The firmware compiled successfully, but was not physically tested on LEDs.
 
+## Release Hardening Pass - Finalization, Resources, And Release Readiness
+
+Main additions:
+
+- Removed tracked Wi-Fi and OTA credentials from firmware configuration.
+- Added `Secrets.example.h` and ignored local `Secrets.h`.
+- Added root `README.md` with first-time setup, hardware safety notes, docs index, and test/build commands.
+- Added runtime resource diagnostics for free heap, largest free block, heap fragmentation, minimum free heap since boot, sketch size, free sketch space, and LittleFS capacity.
+- Added endpoint heap tracking for `/`, `/api/state`, `/api/modes`, `/api/scenes`, `/api/palettes`, `/api/schedule`, `/api/diagnostics`, and `/api/backup/export`.
+- Streamed `/api/modes` and chunked `/api/backup/export` to reduce large contiguous JSON allocation pressure.
+- Migrated selected long-lived fields to fixed char buffers for favorites and time sync status.
+- Preserved the central output pipeline and did not add modes or downgrade renderer math.
+
+Generated documentation:
+
+- `README.md`
+- `docs/generated/BedroomLedController_Release_Hardening_Report.md`
+- `docs/generated/BedroomLedController_Final_Report.md`
+- `docs/generated/BedroomLedController_User_Guide.md`
+- `docs/generated/BedroomLedController_API_Reference.md`
+- `docs/generated/BedroomLedController_Troubleshooting.md`
+- `docs/generated/BedroomLedController_Resource_And_Migration_Report.md`
+- `docs/generated/Phase_Completion.md`
+
+Verification status:
+
+- Worktree firmware compile for `esp8266:esp8266:d1_mini`: passed.
+- `python -m unittest discover -s tests -v`: passed, 124 tests.
+- resource report: RAM 58,948 / 80,192 bytes (73%); IRAM 61,383 / 65,536 bytes (93%); flash 587,436 / 1,048,576 bytes (56%).
+- Runtime free heap after boot, endpoint route heap readings, LittleFS live usage, OTA behavior, web responsiveness, animation responsiveness, and physical LED behavior: not measured.
+- Compiled successfully for the D1 mini / ESP8266 target, but not physically tested on LEDs.
+
 ## Phase 4D - Final Polish, Advanced Scene Management, And Docs
 
 Main additions:

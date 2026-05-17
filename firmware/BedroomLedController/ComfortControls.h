@@ -58,7 +58,7 @@ String normalizeFavoriteType(const String& value) {
 
 int findFavoriteById(const String& id) {
   for (uint8_t i = 0; i < favoriteCount; i++) {
-    if (favorites[i].id == id) {
+    if (fixedEquals(favorites[i].id, id)) {
       return i;
     }
   }
@@ -74,16 +74,17 @@ bool isSupportedActionName(const String& actionName) {
 }
 
 bool favoriteTargetAvailable(const FavoriteItem& favorite) {
-  if (favorite.type == "scene") {
-    return findSceneById(favorite.target) >= 0;
+  String target = fixedString(favorite.target);
+  if (strcmp(favorite.type, "scene") == 0) {
+    return findSceneById(target) >= 0;
   }
-  if (favorite.type == "action") {
-    return isSupportedActionName(favorite.target);
+  if (strcmp(favorite.type, "action") == 0) {
+    return isSupportedActionName(target);
   }
-  if (favorite.type == "mode") {
+  if (strcmp(favorite.type, "mode") == 0) {
     Mode parsedMode;
-    return tryModeFromString(favorite.target, parsedMode) &&
-           !isModeBlockedByNightGuard(favorite.target);
+    return tryModeFromString(target, parsedMode) &&
+           !isModeBlockedByNightGuard(target);
   }
   return false;
 }
@@ -99,15 +100,15 @@ bool addFavoriteItem(
   }
 
   FavoriteItem favorite;
-  favorite.id = safeFavoriteToken(id, MAX_FAVORITE_ID_LENGTH);
-  favorite.label = cleanFavoriteLabel(label);
-  favorite.type = normalizeFavoriteType(type);
-  favorite.target = safeFavoriteToken(target, MAX_FAVORITE_TARGET_LENGTH);
+  copyFixedString(favorite.id, sizeof(favorite.id), safeFavoriteToken(id, MAX_FAVORITE_ID_LENGTH));
+  copyFixedString(favorite.label, sizeof(favorite.label), cleanFavoriteLabel(label));
+  copyFixedString(favorite.type, sizeof(favorite.type), normalizeFavoriteType(type));
+  copyFixedString(favorite.target, sizeof(favorite.target), safeFavoriteToken(target, MAX_FAVORITE_TARGET_LENGTH));
 
-  if (favorite.id.length() == 0 || favorite.label.length() == 0 || favorite.target.length() == 0) {
+  if (strlen(favorite.id) == 0 || strlen(favorite.label) == 0 || strlen(favorite.target) == 0) {
     return false;
   }
-  if (findFavoriteById(favorite.id) >= 0) {
+  if (findFavoriteById(fixedString(favorite.id)) >= 0) {
     return false;
   }
 
@@ -146,13 +147,13 @@ String buildSingleFavoriteJson(const FavoriteItem& favorite) {
   String json;
   json.reserve(220);
   json += R"json({"id":")json";
-  json += escapeJson(favorite.id);
+  json += escapeJson(fixedString(favorite.id));
   json += R"json(","label":")json";
-  json += escapeJson(favorite.label);
+  json += escapeJson(fixedString(favorite.label));
   json += R"json(","type":")json";
-  json += escapeJson(favorite.type);
+  json += escapeJson(fixedString(favorite.type));
   json += R"json(","target":")json";
-  json += escapeJson(favorite.target);
+  json += escapeJson(fixedString(favorite.target));
   json += R"json(","available":)json";
   json += boolJson(favoriteTargetAvailable(favorite));
   json += F("}");
@@ -205,27 +206,27 @@ bool saveFavorites() {
 bool loadFavoriteObject(const String& objectJson, FavoriteItem& favorite) {
   String textValue;
 
-  favorite.id = "";
-  favorite.label = "";
-  favorite.type = "scene";
-  favorite.target = "";
+  copyFixedCString(favorite.id, sizeof(favorite.id), "");
+  copyFixedCString(favorite.label, sizeof(favorite.label), "");
+  copyFixedCString(favorite.type, sizeof(favorite.type), "scene");
+  copyFixedCString(favorite.target, sizeof(favorite.target), "");
 
   if (readJsonString(objectJson, "id", textValue)) {
-    favorite.id = safeFavoriteToken(textValue, MAX_FAVORITE_ID_LENGTH);
+    copyFixedString(favorite.id, sizeof(favorite.id), safeFavoriteToken(textValue, MAX_FAVORITE_ID_LENGTH));
   }
   if (readJsonString(objectJson, "label", textValue)) {
-    favorite.label = cleanFavoriteLabel(textValue);
+    copyFixedString(favorite.label, sizeof(favorite.label), cleanFavoriteLabel(textValue));
   }
   if (readJsonString(objectJson, "type", textValue)) {
-    favorite.type = normalizeFavoriteType(textValue);
+    copyFixedString(favorite.type, sizeof(favorite.type), normalizeFavoriteType(textValue));
   }
   if (readJsonString(objectJson, "target", textValue)) {
-    favorite.target = safeFavoriteToken(textValue, MAX_FAVORITE_TARGET_LENGTH);
+    copyFixedString(favorite.target, sizeof(favorite.target), safeFavoriteToken(textValue, MAX_FAVORITE_TARGET_LENGTH));
   }
 
-  return favorite.id.length() > 0 &&
-         favorite.label.length() > 0 &&
-         favorite.target.length() > 0;
+  return strlen(favorite.id) > 0 &&
+         strlen(favorite.label) > 0 &&
+         strlen(favorite.target) > 0;
 }
 
 void loadFavorites() {
@@ -282,7 +283,7 @@ void loadFavorites() {
 
     FavoriteItem favorite;
     if (loadFavoriteObject(json.substring(position, end + 1), favorite) &&
-        findFavoriteById(favorite.id) < 0) {
+        findFavoriteById(fixedString(favorite.id)) < 0) {
       favorites[favoriteCount] = favorite;
       favoriteCount++;
     }
@@ -447,22 +448,23 @@ bool loadFavoriteById(const String& id, String& error) {
   }
 
   FavoriteItem favorite = favorites[index];
-  if (favorite.type == "scene") {
-    if (findSceneById(favorite.target) < 0) {
+  String target = fixedString(favorite.target);
+  if (strcmp(favorite.type, "scene") == 0) {
+    if (findSceneById(target) < 0) {
       error = "Favorite target scene not found";
       return false;
     }
-    return loadSceneById(favorite.target, error);
+    return loadSceneById(target, error);
   }
-  if (favorite.type == "action") {
-    return runActionByName(favorite.target, error);
+  if (strcmp(favorite.type, "action") == 0) {
+    return runActionByName(target, error);
   }
-  if (favorite.type == "mode") {
-    if (isModeBlockedByNightGuard(favorite.target)) {
-      error = nightGuardBlockMessage(favorite.target);
+  if (strcmp(favorite.type, "mode") == 0) {
+    if (isModeBlockedByNightGuard(target)) {
+      error = nightGuardBlockMessage(target);
       return false;
     }
-    if (!setModeByName(favorite.target, error)) {
+    if (!setModeByName(target, error)) {
       if (error.length() == 0) {
         error = "Favorite mode is unavailable";
       }

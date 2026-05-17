@@ -85,6 +85,10 @@ String scheduleLoadStatus = "not loaded";
 String scheduleSaveStatus = "not saved";
 String lastScheduleStatus = "none";
 TimeSyncState timeSync;
+EndpointHeapMetric endpointHeapMetrics[MAX_ENDPOINT_HEAP_METRICS];
+uint8_t endpointHeapMetricCount = 0;
+uint32_t minFreeHeapSeen = 0;
+uint32_t resourceStatsLastSampleMs = 0;
 uint32_t schedulerLastCheckMs = 0;
 TransitionState transitionState;
 RgbPixel previousFrame[LED_COUNT];
@@ -145,6 +149,7 @@ void setup() {
   setupRoutes();
   server.begin();
   beginTimeSync(false);
+  updateResourceStats();
 
   ledsDirty = true;
 }
@@ -152,6 +157,7 @@ void setup() {
 void loop() {
   ArduinoOTA.handle();
   server.handleClient();
+  updateResourceStats();
   serviceTimeSync();
   serviceScheduler();
   serviceActiveTimer();

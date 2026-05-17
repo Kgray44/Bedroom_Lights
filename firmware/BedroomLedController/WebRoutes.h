@@ -782,7 +782,9 @@ void setupRoutes() {
 }
 
 void handleRoot() {
+  uint32_t heapBefore = beginEndpointHeapMetric("/");
   server.send_P(200, PSTR("text/html"), INDEX_HTML);
+  finishEndpointHeapMetric("/", heapBefore, strlen_P(INDEX_HTML));
 }
 
 void handleOtaPage() {
@@ -1037,7 +1039,10 @@ void handleState() {
 }
 
 void handleApiState() {
-  server.send(200, "application/json", buildStateJson());
+  uint32_t heapBefore = beginEndpointHeapMetric("/api/state");
+  String json = buildStateJson();
+  finishEndpointHeapMetric("/api/state", heapBefore, json.length());
+  server.send(200, "application/json", json);
 }
 
 void handleApiBrightness() {

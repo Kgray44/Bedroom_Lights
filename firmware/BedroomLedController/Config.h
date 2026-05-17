@@ -4,15 +4,37 @@
 // ----------------------------
 // User settings
 // ----------------------------
-const char* WIFI_SSID = "Apple Network 85064d";
-const char* WIFI_PASS = "12344321";
+#if __has_include("Secrets.h")
+#include "Secrets.h"
+#else
+#include "Secrets.example.h"
+#endif
+
+#ifndef BEDROOM_WIFI_SSID
+#define BEDROOM_WIFI_SSID "YOUR_WIFI_NAME"
+#endif
+#ifndef BEDROOM_WIFI_PASS
+#define BEDROOM_WIFI_PASS "YOUR_WIFI_PASSWORD"
+#endif
+#ifndef BEDROOM_OTA_USER
+#define BEDROOM_OTA_USER "admin"
+#endif
+#ifndef BEDROOM_OTA_PASS
+#define BEDROOM_OTA_PASS "CHANGE_ME_OTA_PASSWORD"
+#endif
+#ifndef BEDROOM_FALLBACK_AP_PASS
+#define BEDROOM_FALLBACK_AP_PASS "bedroomleds"
+#endif
+
+const char* WIFI_SSID = BEDROOM_WIFI_SSID;
+const char* WIFI_PASS = BEDROOM_WIFI_PASS;
 
 const char* DEVICE_HOSTNAME = "bedroom-leds";
-const char* OTA_USER = "admin";
-const char* OTA_PASS = "bedroom-leds";
+const char* OTA_USER = BEDROOM_OTA_USER;
+const char* OTA_PASS = BEDROOM_OTA_PASS;
 
 const char* FALLBACK_AP_SSID = "BedroomLED-Setup";
-const char* FALLBACK_AP_PASS = "bedroomleds";
+const char* FALLBACK_AP_PASS = BEDROOM_FALLBACK_AP_PASS;
 
 const uint16_t LED_COUNT = 60;         // 6 ft is often about 55-110 LEDs. Adjust to your strip.
 const uint8_t LED_PIN = D3;            // D3 on a D1 mini is GPIO0.
@@ -48,6 +70,7 @@ const int16_t DEFAULT_LOCAL_UTC_OFFSET_MINUTES = -240;
 const uint32_t TIME_SYNC_RETRY_MS = 10UL * 60UL * 1000UL;
 const uint32_t TIME_SYNC_REFRESH_MS = 12UL * 60UL * 60UL * 1000UL;
 const uint32_t SCHEDULER_CHECK_MS = 1000;
+const uint8_t MAX_ENDPOINT_HEAP_METRICS = 8;
 
 const uint16_t WARM_DIM_KELVIN = 2400;
 const uint8_t WARM_DIM_BRIGHTNESS = 45;

@@ -1,0 +1,15 @@
+# Local firmware secrets
+firmware/BedroomLedController/Secrets.h
+
+# Arduino / ESP8266 build artifacts
+*.bin
+*.elf
+*.map
+*.hex
+*.eep
+build/
+.build/
+
+# Python test cache
+__pycache__/
+*.py[cod]

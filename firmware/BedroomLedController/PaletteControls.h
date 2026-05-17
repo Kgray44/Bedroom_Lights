@@ -847,7 +847,10 @@ void sendPaletteActionOk(const String& message, const String& paletteId) {
 }
 
 void handleApiPalettes() {
-  server.send(200, "application/json", buildPalettesJson());
+  uint32_t heapBefore = beginEndpointHeapMetric("/api/palettes");
+  String json = buildPalettesJson();
+  finishEndpointHeapMetric("/api/palettes", heapBefore, json.length());
+  server.send(200, "application/json", json);
 }
 
 void handleApiPalettesSelect() {

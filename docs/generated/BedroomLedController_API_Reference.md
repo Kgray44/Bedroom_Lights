@@ -69,4 +69,19 @@ All routes are local GET routes served by the ESP8266. Large JSON imports are co
 - `GET /api/reset?target=factory&confirm=YES`
 - `GET /api-docs`
 
-Runtime heap after each API route is not measured.
+## Diagnostics resource fields
+
+`GET /api/diagnostics` includes runtime resource fields when running on the device:
+
+- `freeHeap`, `freeHeapNow`
+- `maxFreeBlockSize`
+- `heapFragmentationPercent`
+- `minFreeHeapSinceBoot`
+- `sketchSizeBytes`
+- `freeSketchSpaceBytes`
+- `littleFsTotalBytes`, `littleFsUsedBytes`, `littleFsFreeBytes`
+- `endpointHeapMetrics`
+
+Endpoint heap metrics are populated after routes are exercised. The values are live runtime readings, not compile-time estimates.
+
+Physical LED behavior, OTA upload behavior, and live endpoint heap readings were not measured during this documentation pass.

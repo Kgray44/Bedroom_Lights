@@ -39,6 +39,40 @@ String buildBackupExportJson() {
   return json;
 }
 
+void sendBackupExportChunk(const String& chunk, uint32_t& payloadBytes) {
+  server.sendContent(chunk);
+  payloadBytes += chunk.length();
+  yield();
+}
+
+void streamBackupExportJson() {
+  uint32_t heapBefore = beginEndpointHeapMetric("/api/backup/export");
+  uint32_t payloadBytes = 0;
+  server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+  server.send(200, "application/json", "");
+
+  sendBackupExportChunk(
+    F("{\"ok\":true,\"backupSchema\":1,\"project\":\"BedroomLedController\",\"projectVersion\":\"Phase 4D\""
+      ",\"boardTarget\":\"esp8266:esp8266:d1_mini\""
+      ",\"importStatus\":\"Full backup import validates schema; use selective import routes for applied restores\""
+      ",\"excludes\":[\"wifiCredentials\",\"otaPassword\",\"runtimeTimerState\",\"runtimeTransitionState\"]"
+      ",\"scenes\":"),
+    payloadBytes
+  );
+  sendBackupExportChunk(buildScenesJson(), payloadBytes);
+  sendBackupExportChunk(F(",\"palettes\":"), payloadBytes);
+  sendBackupExportChunk(buildPalettesJson(), payloadBytes);
+  sendBackupExportChunk(F(",\"favorites\":"), payloadBytes);
+  sendBackupExportChunk(buildFavoritesJson(), payloadBytes);
+  sendBackupExportChunk(F(",\"schedule\":"), payloadBytes);
+  sendBackupExportChunk(buildScheduleExportJson(), payloadBytes);
+  sendBackupExportChunk(F(",\"diagnostics\":"), payloadBytes);
+  sendBackupExportChunk(buildDiagnosticsJson(), payloadBytes);
+  sendBackupExportChunk(F("}"), payloadBytes);
+
+  finishEndpointHeapMetric("/api/backup/export", heapBefore, payloadBytes);
+}
+
 void sendManagementJson(const String& message) {
   String json;
   json.reserve(520);
@@ -59,7 +93,7 @@ void sendManagementJson(const String& message) {
 }
 
 void handleApiBackupExport() {
-  server.send(200, "application/json", buildBackupExportJson());
+  streamBackupExportJson();
 }
 
 void handleApiBackupImport() {

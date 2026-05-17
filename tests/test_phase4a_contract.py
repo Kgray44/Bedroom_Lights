@@ -40,7 +40,7 @@ class Phase4ASchedulerSceneLinksContractTests(unittest.TestCase):
             "bool timeSynced",
             "uint32_t lastSyncAttemptMs",
             "uint32_t lastSyncSuccessEpoch",
-            "String timeStatus",
+            "char timeStatus[64]",
         ]:
             self.assertIn(required, types)
 

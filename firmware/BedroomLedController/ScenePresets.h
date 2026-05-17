@@ -819,7 +819,10 @@ void sendSceneActionOk(const String& message, const String& sceneId) {
 }
 
 void handleApiScenes() {
-  server.send(200, "application/json", buildScenesJson());
+  uint32_t heapBefore = beginEndpointHeapMetric("/api/scenes");
+  String json = buildScenesJson();
+  finishEndpointHeapMetric("/api/scenes", heapBefore, json.length());
+  server.send(200, "application/json", json);
 }
 
 void handleApiScenesSave() {

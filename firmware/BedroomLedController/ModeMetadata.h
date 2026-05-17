@@ -215,8 +215,38 @@ bool modeBlockedByNightGuard(const String& modeName) {
   return metadata != nullptr && metadata->blockedByNightGuard;
 }
 
+void streamModesJson() {
+  uint32_t heapBefore = beginEndpointHeapMetric("/api/modes");
+  uint32_t payloadBytes = 0;
+  server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+  server.send(200, "application/json", "");
+
+  String chunk;
+  chunk.reserve(520);
+  chunk += R"json({"ok":true,"version":1,"count":)json";
+  chunk += MODE_METADATA_COUNT;
+  chunk += R"json(,"modes":[)json";
+  server.sendContent(chunk);
+  payloadBytes += chunk.length();
+
+  for (uint8_t i = 0; i < MODE_METADATA_COUNT; i++) {
+    chunk = "";
+    if (i > 0) {
+      chunk += ',';
+    }
+    chunk += buildModeMetadataJson(MODE_METADATA[i]);
+    server.sendContent(chunk);
+    payloadBytes += chunk.length();
+    yield();
+  }
+
+  server.sendContent("]}");
+  payloadBytes += 2;
+  finishEndpointHeapMetric("/api/modes", heapBefore, payloadBytes);
+}
+
 void handleApiModes() {
-  server.send(200, "application/json", buildModesJson());
+  streamModesJson();
 }
 
 #endif

@@ -84,6 +84,10 @@ int findMatchingJsonClose(const String& json, int start, char openChar, char clo
 bool extractJsonObjectForKey(const String& json, const char* key, String& objectJson);
 bool extractJsonArrayForKey(const String& json, const char* key, String& arrayJson);
 bool extractFirstJsonObject(const String& json, String& objectJson);
+void copyFixedCString(char* destination, size_t destinationSize, const char* value);
+void copyFixedString(char* destination, size_t destinationSize, const String& value);
+bool fixedEquals(const char* value, const String& expected);
+String fixedString(const char* value);
 void loadSettings();
 void saveSettings();
 void markSettingsDirty();
@@ -180,8 +184,12 @@ String timerActionKey(TimerActionType action);
 String buildPowerJson();
 String buildWarningsJson(const PowerEstimate& estimate);
 String buildDiagnosticsJson();
+uint32_t beginEndpointHeapMetric(const char* route);
+void finishEndpointHeapMetric(const char* route, uint32_t heapBeforeBytes, uint32_t payloadBytes);
+String buildEndpointHeapMetricsJson();
+void updateResourceStats();
 String buildBackupExportJson();
-
+void streamBackupExportJson();
 void updateLeds();
 void renderCurrentModeToFrame(uint32_t now);
 void renderSatinBreathing(uint32_t now);
