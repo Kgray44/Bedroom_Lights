@@ -543,7 +543,9 @@ void finishEndpointHeapMetric(const char* route, uint32_t heapBeforeBytes, uint3
 
 String buildEndpointHeapMetricsJson() {
   String json;
-  json.reserve(120 + endpointHeapMetricCount * 180);
+  if (!json.reserve(120 + endpointHeapMetricCount * 280)) {
+    return String("[]");
+  }
   json += '[';
   for (uint8_t i = 0; i < endpointHeapMetricCount; i++) {
     if (i > 0) {
@@ -568,6 +570,54 @@ String buildEndpointHeapMetricsJson() {
     json += '}';
   }
   json += ']';
+  return json;
+}
+
+String buildResourcesJson() {
+  FSInfo fsInfo;
+  bool fsInfoAvailable = settingsStorageReady && LittleFS.info(fsInfo);
+  uint32_t freeHeapNow = ESP.getFreeHeap();
+  noteFreeHeap(freeHeapNow);
+
+  String json;
+  json.reserve(820);
+  json += R"json({"ok":true,"uptimeMs":)json";
+  json += millis();
+  json += R"json(,"hostname":")json";
+  json += escapeJson(DEVICE_HOSTNAME);
+  json += R"json(","ip":")json";
+  json += escapeJson(ipAddressString());
+  json += R"json(","wifiConnected":)json";
+  json += boolJson(WiFi.status() == WL_CONNECTED);
+  json += R"json(,"rssi":)json";
+  json += WiFi.status() == WL_CONNECTED ? WiFi.RSSI() : 0;
+  json += R"json(,"freeHeapNow":)json";
+  json += freeHeapNow;
+  json += R"json(,"maxFreeBlockSize":)json";
+  json += ESP.getMaxFreeBlockSize();
+  json += R"json(,"heapFragmentationPercent":)json";
+  json += ESP.getHeapFragmentation();
+  json += R"json(,"minFreeHeapSinceBoot":)json";
+  json += minFreeHeapSeen;
+  json += R"json(,"sketchSizeBytes":)json";
+  json += ESP.getSketchSize();
+  json += R"json(,"freeSketchSpaceBytes":)json";
+  json += ESP.getFreeSketchSpace();
+  json += R"json(,"littleFsMeasured":)json";
+  json += boolJson(fsInfoAvailable);
+  json += R"json(,"littleFsTotalBytes":)json";
+  json += fsInfoAvailable ? fsInfo.totalBytes : 0;
+  json += R"json(,"littleFsUsedBytes":)json";
+  json += fsInfoAvailable ? fsInfo.usedBytes : 0;
+  json += R"json(,"littleFsFreeBytes":)json";
+  json += fsInfoAvailable && fsInfo.totalBytes >= fsInfo.usedBytes ? fsInfo.totalBytes - fsInfo.usedBytes : 0;
+  json += R"json(,"masterBrightness":)json";
+  json += settings.masterBrightness;
+  json += R"json(,"effectiveBrightness":)json";
+  json += getEffectiveBrightness();
+  json += R"json(,"endpointHeapMetrics":)json";
+  json += buildEndpointHeapMetricsJson();
+  json += F("}");
   return json;
 }
 
@@ -637,7 +687,7 @@ String buildDiagnosticsJson() {
   json += escapeJson(category);
   json += R"json(","modeTags":)json";
   json += currentModeTagsJson();
-  json += R"json(","currentModeSupportsPalette":)json";
+  json += R"json(,"currentModeSupportsPalette":)json";
   json += boolJson(currentModeSupportsPalette());
   json += R"json(,"currentModePaletteRole":")json";
   json += escapeJson(currentModePaletteRole());
@@ -743,7 +793,7 @@ String buildDiagnosticsJson() {
   json += escapeJson(lastLoadedSceneName);
   json += R"json(","currentStateMatchesLoadedScene":)json";
   json += boolJson(currentStateMatchesLoadedScene);
-  json += R"json(","timerActive":)json";
+  json += R"json(,"timerActive":)json";
   json += boolJson(activeTimer.active);
   json += R"json(,"timerMode":")json";
   json += timerModeKey(activeTimer.mode);
@@ -807,8 +857,7 @@ String buildDiagnosticsJson() {
   json += estimate.recommendedBrightnessCap;
   json += R"json(,"warnings":)json";
   json += buildWarningsJson(estimate);
-  json += R"json(,"endpointHeapMetrics":)json";
-  json += buildEndpointHeapMetricsJson();
+  json += R"json(,"endpointHeapMetrics":[],"endpointHeapMetricsRoute":"/api/resources")json";
   json += F("}");
   return json;
 }
@@ -821,6 +870,13 @@ void handleApiDiagnostics() {
   uint32_t heapBefore = beginEndpointHeapMetric("/api/diagnostics");
   String json = buildDiagnosticsJson();
   finishEndpointHeapMetric("/api/diagnostics", heapBefore, json.length());
+  server.send(200, "application/json", json);
+}
+
+void handleApiResources() {
+  uint32_t heapBefore = beginEndpointHeapMetric("/api/resources");
+  String json = buildResourcesJson();
+  finishEndpointHeapMetric("/api/resources", heapBefore, json.length());
   server.send(200, "application/json", json);
 }
 

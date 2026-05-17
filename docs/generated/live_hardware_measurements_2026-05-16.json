@@ -1,0 +1,849 @@
+{
+  "baseUrl": "http://bedroom-leds.local",
+  "diagnosticsCheck": {
+    "status": "parse_ok",
+    "payloadLength": 3496,
+    "freeHeapNow": 7808,
+    "maxFreeBlockSize": 2976,
+    "heapFragmentationPercent": 22,
+    "minFreeHeapSinceBoot": 3952,
+    "ledCount": 140,
+    "masterBrightness": 100
+  },
+  "routeResults": [
+    {
+      "route": "/",
+      "statusCode": 200,
+      "payloadLength": 97471
+    },
+    {
+      "route": "/api/state",
+      "statusCode": 200,
+      "payloadLength": 2051
+    },
+    {
+      "route": "/api/modes",
+      "statusCode": 200,
+      "payloadLength": 18305
+    },
+    {
+      "route": "/api/scenes",
+      "statusCode": 200,
+      "payloadLength": 5509
+    },
+    {
+      "route": "/api/palettes",
+      "statusCode": 200,
+      "payloadLength": 2964
+    },
+    {
+      "route": "/api/schedule",
+      "statusCode": 200,
+      "payloadLength": 323
+    },
+    {
+      "route": "/api/backup/export",
+      "statusCode": 200,
+      "payloadLength": 12363
+    }
+  ],
+  "controlResults": [
+    {
+      "route": "/api/brightness?value=100",
+      "statusCode": 200,
+      "payloadLength": 2102
+    },
+    {
+      "route": "/api/color?hex=%23FFB26D",
+      "statusCode": 200,
+      "payloadLength": 2098
+    },
+    {
+      "route": "/api/temperature?kelvin=3000",
+      "statusCode": 200,
+      "payloadLength": 2103
+    },
+    {
+      "route": "/api/mode?mode=solid",
+      "statusCode": 200,
+      "payloadLength": 2095
+    },
+    {
+      "route": "/api/test?name=red",
+      "statusCode": 200,
+      "payloadLength": 46
+    },
+    {
+      "route": "/api/test?name=green",
+      "statusCode": 200,
+      "payloadLength": 48
+    },
+    {
+      "route": "/api/test?name=blue",
+      "statusCode": 200,
+      "payloadLength": 47
+    },
+    {
+      "route": "/api/test?name=whiteLow",
+      "statusCode": 200,
+      "payloadLength": 51
+    },
+    {
+      "route": "/api/test?name=restore",
+      "statusCode": 200,
+      "payloadLength": 51
+    }
+  ],
+  "otaPage": {
+    "route": "/ota",
+    "statusCode": 200,
+    "payloadLength": 1111
+  },
+  "updatePageNoUpload": "401 0",
+  "measurements": [
+    {
+      "label": "afterBoot",
+      "uptimeMs": 149003,
+      "ip": "192.168.1.201",
+      "freeHeapNow": 7768,
+      "maxFreeBlockSize": 3960,
+      "heapFragmentationPercent": 32,
+      "minFreeHeapSinceBoot": 3888,
+      "sketchSizeBytes": 647552,
+      "freeSketchSpaceBytes": 1445888,
+      "littleFsTotalBytes": 2072576,
+      "littleFsUsedBytes": 49152,
+      "littleFsFreeBytes": 2023424,
+      "masterBrightness": 100,
+      "effectiveBrightness": 100,
+      "endpointHeapMetrics": [
+        {
+          "route": "/api/resources",
+          "measuredAtMs": 50991,
+          "heapBeforeBytes": 8048,
+          "heapAfterBytes": 7208,
+          "heapMinimumBytes": 7208,
+          "heapDeltaBytes": -840,
+          "payloadBytes": 444
+        },
+        {
+          "route": "/api/diagnostics",
+          "measuredAtMs": 148820,
+          "heapBeforeBytes": 7848,
+          "heapAfterBytes": 3888,
+          "heapMinimumBytes": 3888,
+          "heapDeltaBytes": -3960,
+          "payloadBytes": 3496
+        }
+      ]
+    },
+    {
+      "label": "after_mainPage",
+      "uptimeMs": 151088,
+      "ip": "192.168.1.201",
+      "freeHeapNow": 7768,
+      "maxFreeBlockSize": 6376,
+      "heapFragmentationPercent": 8,
+      "minFreeHeapSinceBoot": 3888,
+      "sketchSizeBytes": 647552,
+      "freeSketchSpaceBytes": 1445888,
+      "littleFsTotalBytes": 2072576,
+      "littleFsUsedBytes": 49152,
+      "littleFsFreeBytes": 2023424,
+      "masterBrightness": 100,
+      "effectiveBrightness": 100,
+      "endpointHeapMetrics": [
+        {
+          "route": "/api/resources",
+          "measuredAtMs": 149005,
+          "heapBeforeBytes": 7768,
+          "heapAfterBytes": 6928,
+          "heapMinimumBytes": 6928,
+          "heapDeltaBytes": -840,
+          "payloadBytes": 766
+        },
+        {
+          "route": "/api/diagnostics",
+          "measuredAtMs": 148820,
+          "heapBeforeBytes": 7848,
+          "heapAfterBytes": 3888,
+          "heapMinimumBytes": 3888,
+          "heapDeltaBytes": -3960,
+          "payloadBytes": 3496
+        },
+        {
+          "route": "/",
+          "measuredAtMs": 150323,
+          "heapBeforeBytes": 7880,
+          "heapAfterBytes": 6536,
+          "heapMinimumBytes": 6536,
+          "heapDeltaBytes": -1344,
+          "payloadBytes": 97471
+        }
+      ]
+    },
+    {
+      "label": "after_state",
+      "uptimeMs": 151976,
+      "ip": "192.168.1.201",
+      "freeHeapNow": 7880,
+      "maxFreeBlockSize": 6720,
+      "heapFragmentationPercent": 5,
+      "minFreeHeapSinceBoot": 3888,
+      "sketchSizeBytes": 647552,
+      "freeSketchSpaceBytes": 1445888,
+      "littleFsTotalBytes": 2072576,
+      "littleFsUsedBytes": 49152,
+      "littleFsFreeBytes": 2023424,
+      "masterBrightness": 100,
+      "effectiveBrightness": 100,
+      "endpointHeapMetrics": [
+        {
+          "route": "/api/resources",
+          "measuredAtMs": 151090,
+          "heapBeforeBytes": 7768,
+          "heapAfterBytes": 6832,
+          "heapMinimumBytes": 6832,
+          "heapDeltaBytes": -936,
+          "payloadBytes": 915
+        },
+        {
+          "route": "/api/diagnostics",
+          "measuredAtMs": 148820,
+          "heapBeforeBytes": 7848,
+          "heapAfterBytes": 3888,
+          "heapMinimumBytes": 3888,
+          "heapDeltaBytes": -3960,
+          "payloadBytes": 3496
+        },
+        {
+          "route": "/",
+          "measuredAtMs": 150323,
+          "heapBeforeBytes": 7880,
+          "heapAfterBytes": 6536,
+          "heapMinimumBytes": 6536,
+          "heapDeltaBytes": -1344,
+          "payloadBytes": 97471
+        },
+        {
+          "route": "/api/state",
+          "measuredAtMs": 151109,
+          "heapBeforeBytes": 7880,
+          "heapAfterBytes": 5664,
+          "heapMinimumBytes": 5664,
+          "heapDeltaBytes": -2216,
+          "payloadBytes": 2051
+        }
+      ]
+    },
+    {
+      "label": "after_modes",
+      "uptimeMs": 152934,
+      "ip": "192.168.1.201",
+      "freeHeapNow": 7736,
+      "maxFreeBlockSize": 6568,
+      "heapFragmentationPercent": 5,
+      "minFreeHeapSinceBoot": 3888,
+      "sketchSizeBytes": 647552,
+      "freeSketchSpaceBytes": 1445888,
+      "littleFsTotalBytes": 2072576,
+      "littleFsUsedBytes": 49152,
+      "littleFsFreeBytes": 2023424,
+      "masterBrightness": 100,
+      "effectiveBrightness": 100,
+      "endpointHeapMetrics": [
+        {
+          "route": "/api/resources",
+          "measuredAtMs": 151978,
+          "heapBeforeBytes": 7880,
+          "heapAfterBytes": 6784,
+          "heapMinimumBytes": 6784,
+          "heapDeltaBytes": -1096,
+          "payloadBytes": 1072
+        },
+        {
+          "route": "/api/diagnostics",
+          "measuredAtMs": 148820,
+          "heapBeforeBytes": 7848,
+          "heapAfterBytes": 3888,
+          "heapMinimumBytes": 3888,
+          "heapDeltaBytes": -3960,
+          "payloadBytes": 3496
+        },
+        {
+          "route": "/",
+          "measuredAtMs": 150323,
+          "heapBeforeBytes": 7880,
+          "heapAfterBytes": 6536,
+          "heapMinimumBytes": 6536,
+          "heapDeltaBytes": -1344,
+          "payloadBytes": 97471
+        },
+        {
+          "route": "/api/state",
+          "measuredAtMs": 151109,
+          "heapBeforeBytes": 7880,
+          "heapAfterBytes": 5664,
+          "heapMinimumBytes": 5664,
+          "heapDeltaBytes": -2216,
+          "payloadBytes": 2051
+        },
+        {
+          "route": "/api/modes",
+          "measuredAtMs": 152192,
+          "heapBeforeBytes": 7880,
+          "heapAfterBytes": 5264,
+          "heapMinimumBytes": 5264,
+          "heapDeltaBytes": -2616,
+          "payloadBytes": 18305
+        }
+      ]
+    },
+    {
+      "label": "after_scenes",
+      "uptimeMs": 153826,
+      "ip": "192.168.1.201",
+      "freeHeapNow": 7880,
+      "maxFreeBlockSize": 6720,
+      "heapFragmentationPercent": 5,
+      "minFreeHeapSinceBoot": 2000,
+      "sketchSizeBytes": 647552,
+      "freeSketchSpaceBytes": 1445888,
+      "littleFsTotalBytes": 2072576,
+      "littleFsUsedBytes": 49152,
+      "littleFsFreeBytes": 2023424,
+      "masterBrightness": 100,
+      "effectiveBrightness": 100,
+      "endpointHeapMetrics": [
+        {
+          "route": "/api/resources",
+          "measuredAtMs": 152937,
+          "heapBeforeBytes": 7736,
+          "heapAfterBytes": 6480,
+          "heapMinimumBytes": 6480,
+          "heapDeltaBytes": -1256,
+          "payloadBytes": 1232
+        },
+        {
+          "route": "/api/diagnostics",
+          "measuredAtMs": 148820,
+          "heapBeforeBytes": 7848,
+          "heapAfterBytes": 3888,
+          "heapMinimumBytes": 3888,
+          "heapDeltaBytes": -3960,
+          "payloadBytes": 3496
+        },
+        {
+          "route": "/",
+          "measuredAtMs": 150323,
+          "heapBeforeBytes": 7880,
+          "heapAfterBytes": 6536,
+          "heapMinimumBytes": 6536,
+          "heapDeltaBytes": -1344,
+          "payloadBytes": 97471
+        },
+        {
+          "route": "/api/state",
+          "measuredAtMs": 151109,
+          "heapBeforeBytes": 7880,
+          "heapAfterBytes": 5664,
+          "heapMinimumBytes": 5664,
+          "heapDeltaBytes": -2216,
+          "payloadBytes": 2051
+        },
+        {
+          "route": "/api/modes",
+          "measuredAtMs": 152192,
+          "heapBeforeBytes": 7880,
+          "heapAfterBytes": 5264,
+          "heapMinimumBytes": 5264,
+          "heapDeltaBytes": -2616,
+          "payloadBytes": 18305
+        },
+        {
+          "route": "/api/scenes",
+          "measuredAtMs": 153015,
+          "heapBeforeBytes": 7880,
+          "heapAfterBytes": 2000,
+          "heapMinimumBytes": 2000,
+          "heapDeltaBytes": -5880,
+          "payloadBytes": 5509
+        }
+      ]
+    },
+    {
+      "label": "after_palettes",
+      "uptimeMs": 154691,
+      "ip": "192.168.1.201",
+      "freeHeapNow": 7880,
+      "maxFreeBlockSize": 3992,
+      "heapFragmentationPercent": 33,
+      "minFreeHeapSinceBoot": 2000,
+      "sketchSizeBytes": 647552,
+      "freeSketchSpaceBytes": 1445888,
+      "littleFsTotalBytes": 2072576,
+      "littleFsUsedBytes": 49152,
+      "littleFsFreeBytes": 2023424,
+      "masterBrightness": 100,
+      "effectiveBrightness": 100,
+      "endpointHeapMetrics": [
+        {
+          "route": "/api/resources",
+          "measuredAtMs": 153829,
+          "heapBeforeBytes": 7880,
+          "heapAfterBytes": 6480,
+          "heapMinimumBytes": 6480,
+          "heapDeltaBytes": -1400,
+          "payloadBytes": 1390
+        },
+        {
+          "route": "/api/diagnostics",
+          "measuredAtMs": 148820,
+          "heapBeforeBytes": 7848,
+          "heapAfterBytes": 3888,
+          "heapMinimumBytes": 3888,
+          "heapDeltaBytes": -3960,
+          "payloadBytes": 3496
+        },
+        {
+          "route": "/",
+          "measuredAtMs": 150323,
+          "heapBeforeBytes": 7880,
+          "heapAfterBytes": 6536,
+          "heapMinimumBytes": 6536,
+          "heapDeltaBytes": -1344,
+          "payloadBytes": 97471
+        },
+        {
+          "route": "/api/state",
+          "measuredAtMs": 151109,
+          "heapBeforeBytes": 7880,
+          "heapAfterBytes": 5664,
+          "heapMinimumBytes": 5664,
+          "heapDeltaBytes": -2216,
+          "payloadBytes": 2051
+        },
+        {
+          "route": "/api/modes",
+          "measuredAtMs": 152192,
+          "heapBeforeBytes": 7880,
+          "heapAfterBytes": 5264,
+          "heapMinimumBytes": 5264,
+          "heapDeltaBytes": -2616,
+          "payloadBytes": 18305
+        },
+        {
+          "route": "/api/scenes",
+          "measuredAtMs": 153015,
+          "heapBeforeBytes": 7880,
+          "heapAfterBytes": 2000,
+          "heapMinimumBytes": 2000,
+          "heapDeltaBytes": -5880,
+          "payloadBytes": 5509
+        },
+        {
+          "route": "/api/palettes",
+          "measuredAtMs": 153901,
+          "heapBeforeBytes": 7768,
+          "heapAfterBytes": 3936,
+          "heapMinimumBytes": 3936,
+          "heapDeltaBytes": -3832,
+          "payloadBytes": 2964
+        }
+      ]
+    },
+    {
+      "label": "after_schedule",
+      "uptimeMs": 155496,
+      "ip": "192.168.1.201",
+      "freeHeapNow": 7880,
+      "maxFreeBlockSize": 5936,
+      "heapFragmentationPercent": 16,
+      "minFreeHeapSinceBoot": 2000,
+      "sketchSizeBytes": 647552,
+      "freeSketchSpaceBytes": 1445888,
+      "littleFsTotalBytes": 2072576,
+      "littleFsUsedBytes": 49152,
+      "littleFsFreeBytes": 2023424,
+      "masterBrightness": 100,
+      "effectiveBrightness": 100,
+      "endpointHeapMetrics": [
+        {
+          "route": "/api/resources",
+          "measuredAtMs": 154694,
+          "heapBeforeBytes": 7880,
+          "heapAfterBytes": 6320,
+          "heapMinimumBytes": 6320,
+          "heapDeltaBytes": -1560,
+          "payloadBytes": 1551
+        },
+        {
+          "route": "/api/diagnostics",
+          "measuredAtMs": 148820,
+          "heapBeforeBytes": 7848,
+          "heapAfterBytes": 3888,
+          "heapMinimumBytes": 3888,
+          "heapDeltaBytes": -3960,
+          "payloadBytes": 3496
+        },
+        {
+          "route": "/",
+          "measuredAtMs": 150323,
+          "heapBeforeBytes": 7880,
+          "heapAfterBytes": 6536,
+          "heapMinimumBytes": 6536,
+          "heapDeltaBytes": -1344,
+          "payloadBytes": 97471
+        },
+        {
+          "route": "/api/state",
+          "measuredAtMs": 151109,
+          "heapBeforeBytes": 7880,
+          "heapAfterBytes": 5664,
+          "heapMinimumBytes": 5664,
+          "heapDeltaBytes": -2216,
+          "payloadBytes": 2051
+        },
+        {
+          "route": "/api/modes",
+          "measuredAtMs": 152192,
+          "heapBeforeBytes": 7880,
+          "heapAfterBytes": 5264,
+          "heapMinimumBytes": 5264,
+          "heapDeltaBytes": -2616,
+          "payloadBytes": 18305
+        },
+        {
+          "route": "/api/scenes",
+          "measuredAtMs": 153015,
+          "heapBeforeBytes": 7880,
+          "heapAfterBytes": 2000,
+          "heapMinimumBytes": 2000,
+          "heapDeltaBytes": -5880,
+          "payloadBytes": 5509
+        },
+        {
+          "route": "/api/palettes",
+          "measuredAtMs": 153901,
+          "heapBeforeBytes": 7768,
+          "heapAfterBytes": 3936,
+          "heapMinimumBytes": 3936,
+          "heapDeltaBytes": -3832,
+          "payloadBytes": 2964
+        },
+        {
+          "route": "/api/schedule",
+          "measuredAtMs": 154723,
+          "heapBeforeBytes": 7880,
+          "heapAfterBytes": 7216,
+          "heapMinimumBytes": 7216,
+          "heapDeltaBytes": -664,
+          "payloadBytes": 323
+        }
+      ]
+    },
+    {
+      "label": "after_backup_export",
+      "uptimeMs": 156474,
+      "ip": "192.168.1.201",
+      "freeHeapNow": 7848,
+      "maxFreeBlockSize": 6568,
+      "heapFragmentationPercent": 7,
+      "minFreeHeapSinceBoot": 2000,
+      "sketchSizeBytes": 647552,
+      "freeSketchSpaceBytes": 1445888,
+      "littleFsTotalBytes": 2072576,
+      "littleFsUsedBytes": 49152,
+      "littleFsFreeBytes": 2023424,
+      "masterBrightness": 100,
+      "effectiveBrightness": 100,
+      "endpointHeapMetrics": [
+        {
+          "route": "/api/resources",
+          "measuredAtMs": 155499,
+          "heapBeforeBytes": 7880,
+          "heapAfterBytes": 6160,
+          "heapMinimumBytes": 6160,
+          "heapDeltaBytes": -1720,
+          "payloadBytes": 1709
+        },
+        {
+          "route": "/api/diagnostics",
+          "measuredAtMs": 148820,
+          "heapBeforeBytes": 7848,
+          "heapAfterBytes": 3888,
+          "heapMinimumBytes": 3888,
+          "heapDeltaBytes": -3960,
+          "payloadBytes": 3496
+        },
+        {
+          "route": "/",
+          "measuredAtMs": 150323,
+          "heapBeforeBytes": 7880,
+          "heapAfterBytes": 6536,
+          "heapMinimumBytes": 6536,
+          "heapDeltaBytes": -1344,
+          "payloadBytes": 97471
+        },
+        {
+          "route": "/api/state",
+          "measuredAtMs": 151109,
+          "heapBeforeBytes": 7880,
+          "heapAfterBytes": 5664,
+          "heapMinimumBytes": 5664,
+          "heapDeltaBytes": -2216,
+          "payloadBytes": 2051
+        },
+        {
+          "route": "/api/modes",
+          "measuredAtMs": 152192,
+          "heapBeforeBytes": 7880,
+          "heapAfterBytes": 5264,
+          "heapMinimumBytes": 5264,
+          "heapDeltaBytes": -2616,
+          "payloadBytes": 18305
+        },
+        {
+          "route": "/api/scenes",
+          "measuredAtMs": 153015,
+          "heapBeforeBytes": 7880,
+          "heapAfterBytes": 2000,
+          "heapMinimumBytes": 2000,
+          "heapDeltaBytes": -5880,
+          "payloadBytes": 5509
+        },
+        {
+          "route": "/api/palettes",
+          "measuredAtMs": 153901,
+          "heapBeforeBytes": 7768,
+          "heapAfterBytes": 3936,
+          "heapMinimumBytes": 3936,
+          "heapDeltaBytes": -3832,
+          "payloadBytes": 2964
+        },
+        {
+          "route": "/api/schedule",
+          "measuredAtMs": 154723,
+          "heapBeforeBytes": 7880,
+          "heapAfterBytes": 7216,
+          "heapMinimumBytes": 7216,
+          "heapDeltaBytes": -664,
+          "payloadBytes": 323
+        },
+        {
+          "route": "/api/backup/export",
+          "measuredAtMs": 155684,
+          "heapBeforeBytes": 7768,
+          "heapAfterBytes": 6504,
+          "heapMinimumBytes": 6504,
+          "heapDeltaBytes": -1264,
+          "payloadBytes": 12363
+        }
+      ]
+    },
+    {
+      "label": "after_controls_and_led_tests",
+      "uptimeMs": 161787,
+      "ip": "192.168.1.201",
+      "freeHeapNow": 7880,
+      "maxFreeBlockSize": 6560,
+      "heapFragmentationPercent": 7,
+      "minFreeHeapSinceBoot": 2000,
+      "sketchSizeBytes": 647552,
+      "freeSketchSpaceBytes": 1445888,
+      "littleFsTotalBytes": 2072576,
+      "littleFsUsedBytes": 49152,
+      "littleFsFreeBytes": 2023424,
+      "masterBrightness": 100,
+      "effectiveBrightness": 100,
+      "endpointHeapMetrics": [
+        {
+          "route": "/api/resources",
+          "measuredAtMs": 156478,
+          "heapBeforeBytes": 7848,
+          "heapAfterBytes": 5952,
+          "heapMinimumBytes": 5952,
+          "heapDeltaBytes": -1896,
+          "payloadBytes": 1874
+        },
+        {
+          "route": "/api/diagnostics",
+          "measuredAtMs": 148820,
+          "heapBeforeBytes": 7848,
+          "heapAfterBytes": 3888,
+          "heapMinimumBytes": 3888,
+          "heapDeltaBytes": -3960,
+          "payloadBytes": 3496
+        },
+        {
+          "route": "/",
+          "measuredAtMs": 150323,
+          "heapBeforeBytes": 7880,
+          "heapAfterBytes": 6536,
+          "heapMinimumBytes": 6536,
+          "heapDeltaBytes": -1344,
+          "payloadBytes": 97471
+        },
+        {
+          "route": "/api/state",
+          "measuredAtMs": 151109,
+          "heapBeforeBytes": 7880,
+          "heapAfterBytes": 5664,
+          "heapMinimumBytes": 5664,
+          "heapDeltaBytes": -2216,
+          "payloadBytes": 2051
+        },
+        {
+          "route": "/api/modes",
+          "measuredAtMs": 152192,
+          "heapBeforeBytes": 7880,
+          "heapAfterBytes": 5264,
+          "heapMinimumBytes": 5264,
+          "heapDeltaBytes": -2616,
+          "payloadBytes": 18305
+        },
+        {
+          "route": "/api/scenes",
+          "measuredAtMs": 153015,
+          "heapBeforeBytes": 7880,
+          "heapAfterBytes": 2000,
+          "heapMinimumBytes": 2000,
+          "heapDeltaBytes": -5880,
+          "payloadBytes": 5509
+        },
+        {
+          "route": "/api/palettes",
+          "measuredAtMs": 153901,
+          "heapBeforeBytes": 7768,
+          "heapAfterBytes": 3936,
+          "heapMinimumBytes": 3936,
+          "heapDeltaBytes": -3832,
+          "payloadBytes": 2964
+        },
+        {
+          "route": "/api/schedule",
+          "measuredAtMs": 154723,
+          "heapBeforeBytes": 7880,
+          "heapAfterBytes": 7216,
+          "heapMinimumBytes": 7216,
+          "heapDeltaBytes": -664,
+          "payloadBytes": 323
+        },
+        {
+          "route": "/api/backup/export",
+          "measuredAtMs": 155684,
+          "heapBeforeBytes": 7768,
+          "heapAfterBytes": 6504,
+          "heapMinimumBytes": 6504,
+          "heapDeltaBytes": -1264,
+          "payloadBytes": 12363
+        }
+      ]
+    },
+    {
+      "label": "after_ota_page_checks",
+      "uptimeMs": 164936,
+      "ip": "192.168.1.201",
+      "freeHeapNow": 7664,
+      "maxFreeBlockSize": 6256,
+      "heapFragmentationPercent": 9,
+      "minFreeHeapSinceBoot": 2000,
+      "sketchSizeBytes": 647552,
+      "freeSketchSpaceBytes": 1445888,
+      "littleFsTotalBytes": 2072576,
+      "littleFsUsedBytes": 49152,
+      "littleFsFreeBytes": 2023424,
+      "masterBrightness": 100,
+      "effectiveBrightness": 100,
+      "endpointHeapMetrics": [
+        {
+          "route": "/api/resources",
+          "measuredAtMs": 161790,
+          "heapBeforeBytes": 7880,
+          "heapAfterBytes": 5984,
+          "heapMinimumBytes": 5984,
+          "heapDeltaBytes": -1896,
+          "payloadBytes": 1874
+        },
+        {
+          "route": "/api/diagnostics",
+          "measuredAtMs": 148820,
+          "heapBeforeBytes": 7848,
+          "heapAfterBytes": 3888,
+          "heapMinimumBytes": 3888,
+          "heapDeltaBytes": -3960,
+          "payloadBytes": 3496
+        },
+        {
+          "route": "/",
+          "measuredAtMs": 150323,
+          "heapBeforeBytes": 7880,
+          "heapAfterBytes": 6536,
+          "heapMinimumBytes": 6536,
+          "heapDeltaBytes": -1344,
+          "payloadBytes": 97471
+        },
+        {
+          "route": "/api/state",
+          "measuredAtMs": 151109,
+          "heapBeforeBytes": 7880,
+          "heapAfterBytes": 5664,
+          "heapMinimumBytes": 5664,
+          "heapDeltaBytes": -2216,
+          "payloadBytes": 2051
+        },
+        {
+          "route": "/api/modes",
+          "measuredAtMs": 152192,
+          "heapBeforeBytes": 7880,
+          "heapAfterBytes": 5264,
+          "heapMinimumBytes": 5264,
+          "heapDeltaBytes": -2616,
+          "payloadBytes": 18305
+        },
+        {
+          "route": "/api/scenes",
+          "measuredAtMs": 153015,
+          "heapBeforeBytes": 7880,
+          "heapAfterBytes": 2000,
+          "heapMinimumBytes": 2000,
+          "heapDeltaBytes": -5880,
+          "payloadBytes": 5509
+        },
+        {
+          "route": "/api/palettes",
+          "measuredAtMs": 153901,
+          "heapBeforeBytes": 7768,
+          "heapAfterBytes": 3936,
+          "heapMinimumBytes": 3936,
+          "heapDeltaBytes": -3832,
+          "payloadBytes": 2964
+        },
+        {
+          "route": "/api/schedule",
+          "measuredAtMs": 154723,
+          "heapBeforeBytes": 7880,
+          "heapAfterBytes": 7216,
+          "heapMinimumBytes": 7216,
+          "heapDeltaBytes": -664,
+          "payloadBytes": 323
+        },
+        {
+          "route": "/api/backup/export",
+          "measuredAtMs": 155684,
+          "heapBeforeBytes": 7768,
+          "heapAfterBytes": 6504,
+          "heapMinimumBytes": 6504,
+          "heapDeltaBytes": -1264,
+          "payloadBytes": 12363
+        }
+      ]
+    }
+  ],
+  "updatePageAuthenticated": {
+    "route": "/update",
+    "statusCode": 200,
+    "payloadLength": 664,
+    "uploadPerformed": false
+  }
+}

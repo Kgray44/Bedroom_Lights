@@ -13,6 +13,7 @@ Local-first bedroom lighting firmware for a D1 mini / ESP8266 driving a WS2812 /
 
 - Board: D1 mini / ESP8266.
 - LEDs: WS2812 / NeoPixel GRB strip.
+- Configured strip length: 140 LEDs.
 - Default data pin: D3 / GPIO0.
 - Warning: D3 / GPIO0 is boot-sensitive. If the strip or wiring pulls it low during reset, the board may fail to boot. Move the data pin in wiring and `Config.h` if boot reliability is poor.
 
@@ -55,14 +56,17 @@ python -m unittest discover -s tests -v
 
 The firmware currently compiles for `esp8266:esp8266:d1_mini`, but IRAM is tight. Future major expansion should move to an ESP32-S3, especially for more UI pages, sensors, richer restore workflows, or additional persistent data.
 
-Latest hardening compile:
+Latest local 140-LED hardware-test build:
 
-- RAM globals/statics: 58,948 / 80,192 bytes (73%).
+- RAM globals/statics: 59,896 / 80,192 bytes (74%).
 - IRAM: 61,383 / 65,536 bytes (93%).
-- Flash/IROM: 587,436 / 1,048,576 bytes (56%).
+- Flash/IROM: 588,188 / 1,048,576 bytes (56%).
 - Python contract tests: `python -m unittest discover -s tests -v` passed, 124 tests.
-- Physical LED behavior: not physically tested on LEDs.
-- OTA upload behavior after this pass: not retested.
+- Live heap after boot/resource check: 7,768 bytes free, 3,960 byte max free block, 32% fragmentation.
+- Lowest measured route heap floor: 2,000 bytes during `/api/scenes`.
+- USB upload over `COM5`: passed.
+- `/ota` and authenticated `/update` page reachability: passed; no OTA upload performed.
+- Physical visual LED behavior: safe LED test endpoints were called, but visual output was not independently observed or measured by Codex; not physically tested on LEDs by Codex vision.
 
 ## Documentation
 

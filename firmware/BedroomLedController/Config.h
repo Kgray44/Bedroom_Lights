@@ -36,9 +36,9 @@ const char* OTA_PASS = BEDROOM_OTA_PASS;
 const char* FALLBACK_AP_SSID = "BedroomLED-Setup";
 const char* FALLBACK_AP_PASS = BEDROOM_FALLBACK_AP_PASS;
 
-const uint16_t LED_COUNT = 60;         // 6 ft is often about 55-110 LEDs. Adjust to your strip.
+const uint16_t LED_COUNT = 140;        // Updated for the measured bedroom strip length.
 const uint8_t LED_PIN = D3;            // D3 on a D1 mini is GPIO0.
-const uint8_t MASTER_BRIGHTNESS = 180; // Conservative Phase 1A default. Raise only if the supply can handle it.
+const uint8_t MASTER_BRIGHTNESS = 100; // Conservative local hardware-test default. Raise only if the supply can handle it.
 
 const char* SETTINGS_PATH = "/settings.json";
 const char* SCENES_PATH = "/scenes.json";
@@ -70,7 +70,7 @@ const int16_t DEFAULT_LOCAL_UTC_OFFSET_MINUTES = -240;
 const uint32_t TIME_SYNC_RETRY_MS = 10UL * 60UL * 1000UL;
 const uint32_t TIME_SYNC_REFRESH_MS = 12UL * 60UL * 60UL * 1000UL;
 const uint32_t SCHEDULER_CHECK_MS = 1000;
-const uint8_t MAX_ENDPOINT_HEAP_METRICS = 8;
+const uint8_t MAX_ENDPOINT_HEAP_METRICS = 10;
 
 const uint16_t WARM_DIM_KELVIN = 2400;
 const uint8_t WARM_DIM_BRIGHTNESS = 45;

@@ -768,6 +768,7 @@ void setupRoutes() {
   server.on("/api/schedule/import", HTTP_GET, handleApiScheduleImport);
   server.on("/api/schedule/reset", HTTP_GET, handleApiScheduleReset);
   server.on("/api/diagnostics", HTTP_GET, handleApiDiagnostics);
+  server.on("/api/resources", HTTP_GET, handleApiResources);
   server.on("/api/power", HTTP_GET, handleApiPower);
   server.on("/api/test", HTTP_GET, handleApiTest);
   server.on("/api/backup/export", HTTP_GET, handleApiBackupExport);

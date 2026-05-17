@@ -52,7 +52,7 @@ Open the controller in a browser using the D1 mini IP address or hostname. The m
 
 ## Resource metrics
 
-Diagnostics reports free heap, largest free heap block, heap fragmentation percent, minimum free heap since boot, sketch size, free sketch space, LittleFS total/used/free, and recent endpoint heap metrics.
+Diagnostics reports free heap, largest free heap block, heap fragmentation percent, minimum free heap since boot, sketch size, free sketch space, and LittleFS total/used/free. Use `/api/resources` for the compact live endpoint heap metric list.
 
 - Low free heap means the firmware has little RAM headroom for large requests.
 - High heap fragmentation means a large JSON response may fail even when total free heap looks acceptable.

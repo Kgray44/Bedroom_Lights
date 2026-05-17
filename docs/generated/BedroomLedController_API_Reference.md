@@ -12,6 +12,7 @@ All routes are local GET routes served by the ESP8266. Large JSON imports are co
 - `GET /api/mode?mode=solid`
 - `GET /api/power`
 - `GET /api/diagnostics`
+- `GET /api/resources`
 
 ## Scenes
 
@@ -82,6 +83,8 @@ All routes are local GET routes served by the ESP8266. Large JSON imports are co
 - `littleFsTotalBytes`, `littleFsUsedBytes`, `littleFsFreeBytes`
 - `endpointHeapMetrics`
 
-Endpoint heap metrics are populated after routes are exercised. The values are live runtime readings, not compile-time estimates.
+Detailed endpoint heap metrics are available from `GET /api/resources`. The compact resource route is preferred for measurement because the full diagnostics payload is already large on the ESP8266.
 
-Physical LED behavior, OTA upload behavior, and live endpoint heap readings were not measured during this documentation pass.
+Live endpoint heap readings were measured during the local hardware pass and recorded in `BedroomLedController_Resource_And_Migration_Report.md`.
+
+Physical visual LED output was not measured by Codex, and no OTA firmware upload was performed.

@@ -61,7 +61,7 @@ class ReleaseHardeningContractTests(unittest.TestCase):
             "arduino-cli compile --fqbn esp8266:esp8266:d1_mini",
             "python -m unittest discover -s tests -v",
             "D1 mini",
-            "not physically tested on LEDs",
+            "visual output was not independently observed",
         ]:
             self.assertIn(required, readme)
 
@@ -137,7 +137,7 @@ class ReleaseHardeningContractTests(unittest.TestCase):
             "No lighting modes were added",
             "No renderer math was downgraded",
             "not measured",
-            "Compiled successfully for the D1 mini / ESP8266 target, but not physically tested on LEDs.",
+            "Compiled and uploaded successfully over USB",
         ]:
             self.assertIn(required, report)
 

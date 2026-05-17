@@ -424,6 +424,35 @@ Verification status:
 - Runtime free heap after boot, endpoint route heap readings, LittleFS live usage, OTA behavior, web responsiveness, animation responsiveness, and physical LED behavior: not measured.
 - Compiled successfully for the D1 mini / ESP8266 target, but not physically tested on LEDs.
 
+## Local Hardware Measurement Pass - 140 LED D1 Mini
+
+Main additions:
+
+- Updated configured LED count to 140 after the strip length was observed.
+- Set the local hardware-test brightness default to 100.
+- Added compact `/api/resources` endpoint for live heap/resource measurement.
+- Kept detailed endpoint metrics out of the full diagnostics payload to preserve valid JSON under low heap.
+- Uploaded the 140-LED build over USB to the connected D1 mini on `COM5`.
+- Confirmed boot, Wi-Fi connection, hostname access, diagnostics JSON parsing, resource metrics, control endpoints, safe LED diagnostic endpoints, `/ota`, and authenticated `/update` reachability.
+
+Generated documentation:
+
+- `docs/generated/live_hardware_measurements_2026-05-16.json`
+- `docs/generated/BedroomLedController_Resource_And_Migration_Report.md`
+- `docs/generated/Phase_Completion.md`
+
+Verification status:
+
+- Worktree firmware compile for `esp8266:esp8266:d1_mini`: passed.
+- USB upload to D1 mini over `COM5`: passed.
+- resource report: RAM 59,896 / 80,192 bytes (74%); IRAM 61,383 / 65,536 bytes (93%); flash 588,188 / 1,048,576 bytes (56%).
+- Live LittleFS: 2,072,576 total / 49,152 used / 2,023,424 free bytes.
+- Live free heap after boot/resource check: 7,768 bytes.
+- Lowest measured route-local heap floor: 2,000 bytes during `/api/scenes`.
+- `/ota`: HTTP 200.
+- `/update`: HTTP 200 with credentials; no OTA upload was performed.
+- Safe LED diagnostics called red, green, blue, whiteLow, and restore; physical visual LED output was not independently observed by Codex.
+
 ## Phase 4D - Final Polish, Advanced Scene Management, And Docs
 
 Main additions:

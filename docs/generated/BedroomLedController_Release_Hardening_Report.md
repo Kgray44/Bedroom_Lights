@@ -17,13 +17,13 @@ This pass focused on final release readiness, resource visibility, and heap-frag
 
 Runtime heap metrics are now exposed for the running device.
 
-`/api/diagnostics` now reports live resource fields:
+`/api/diagnostics` now reports live resource fields, and `/api/resources` exposes the compact endpoint metric view used for hardware measurement:
 
 - `freeHeap`, `freeHeapNow`, `maxFreeBlockSize`, `heapFragmentationPercent`
 - `minFreeHeapSinceBoot`
 - `sketchSizeBytes`, `freeSketchSpaceBytes`
 - `littleFsTotalBytes`, `littleFsUsedBytes`, `littleFsFreeBytes`
-- `endpointHeapMetrics`
+- `endpointHeapMetrics` through `/api/resources`
 
 Endpoint measurement records route, measured time, heap before, heap after, sampled minimum heap, heap delta, and payload bytes for recent heavy routes.
 
@@ -40,7 +40,7 @@ Added compact endpoint heap tracking without `String` fields in the metric struc
 - `/api/diagnostics`
 - `/api/backup/export`
 
-Runtime values are available after exercising the routes on the device. They were not measured on physical hardware in this pass.
+Runtime values were measured on the local D1 mini during the hardware pass. The tightest measured route was `/api/scenes`, which reached a route-local heap floor of 2,000 bytes.
 
 ## Heavy JSON Handling
 
@@ -82,30 +82,30 @@ No normal lighting renderer was changed to write pixels directly or call `strip.
 
 ## Compile And Test Status
 
-Compiled successfully for the D1 mini / ESP8266 target, but not physically tested on LEDs.
+Compiled and uploaded successfully over USB to the D1 mini / ESP8266 target with 140 LEDs configured. Safe LED diagnostic endpoints were called, but physical visual LED output was not independently observed or measured by Codex.
 
 Latest compile:
 
 - Board target: `esp8266:esp8266:d1_mini`
-- RAM globals/statics: 58,948 / 80,192 bytes (73%).
+- RAM globals/statics: 59,896 / 80,192 bytes (74%).
 - IRAM: 61,383 / 65,536 bytes (93%).
-- Flash/IROM: 587,436 / 1,048,576 bytes (56%).
+- Flash/IROM: 588,188 / 1,048,576 bytes (56%).
 
 Python contract tests: `python -m unittest discover -s tests -v` passed, 124 tests.
 
 ## Known Remaining Risks
 
-- Runtime free heap after boot: not measured.
-- Free heap after loading main page: not measured.
-- Free heap after `/api/state`: not measured.
-- Free heap after `/api/modes`: not measured.
-- Free heap after `/api/scenes`: not measured.
-- Free heap after `/api/palettes`: not measured.
-- Free heap after `/api/schedule`: not measured.
-- Free heap after `/api/backup/export`: not measured.
-- LittleFS total/used/free on a live flashed device: not measured.
-- OTA upload behavior after this pass: not retested.
-- Physical LED behavior: not measured.
+- Runtime free heap after boot/resource check: 7,768 bytes.
+- Free heap after loading main page: 7,768 bytes.
+- Free heap after `/api/state`: 7,880 bytes.
+- Free heap after `/api/modes`: 7,736 bytes.
+- Free heap after `/api/scenes`: 7,880 bytes, with route-local floor of 2,000 bytes.
+- Free heap after `/api/palettes`: 7,880 bytes.
+- Free heap after `/api/schedule`: 7,880 bytes.
+- Free heap after `/api/backup/export`: 7,848 bytes.
+- LittleFS total/used/free: 2,072,576 / 49,152 / 2,023,424 bytes.
+- OTA page and browser updater page reachability: tested; no OTA upload was performed.
+- Physical visual LED behavior: not independently observed; not measured by Codex.
 
 ## Recommendation
 
