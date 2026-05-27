@@ -22,7 +22,18 @@ String buildBackupExportJson() {
     diagnosticsJson.length()
   );
   json += R"json({"ok":true,"backupSchema":1,"project":"BedroomLedController","projectVersion":"Phase 4D")json";
-  json += R"json(,"boardTarget":"esp8266:esp8266:d1_mini")json";
+  json += R"json(,"boardTarget":")json";
+  json += escapeJson(boardProfileName());
+  json += R"json(","boardFamily":")json";
+  json += boardFamilyName();
+  json += R"json(","compileFqbn":")json";
+  json += ESP32S3_N16R8_FQBN;
+  json += R"json(","compileOptions":")json";
+  json += ESP32S3_N16R8_OPTIONS;
+  json += R"json(","stripProfile":")json";
+  json += escapeJson(ACTIVE_HARDWARE_PROFILE.profileName);
+  json += R"json(","configuredLedCount":)json";
+  json += getConfiguredLedCount();
   json += R"json(,"importStatus":"Full backup import validates schema; use selective import routes for applied restores")json";
   json += R"json(,"excludes":["wifiCredentials","otaPassword","runtimeTimerState","runtimeTransitionState"])json";
   json += R"json(,"scenes":)json";
@@ -53,8 +64,22 @@ void streamBackupExportJson() {
 
   sendBackupExportChunk(
     F("{\"ok\":true,\"backupSchema\":1,\"project\":\"BedroomLedController\",\"projectVersion\":\"Phase 4D\""
-      ",\"boardTarget\":\"esp8266:esp8266:d1_mini\""
-      ",\"importStatus\":\"Full backup import validates schema; use selective import routes for applied restores\""
+      ",\"boardTarget\":\""),
+    payloadBytes
+  );
+  sendBackupExportChunk(String(boardProfileName()), payloadBytes);
+  sendBackupExportChunk(F("\",\"boardFamily\":\""), payloadBytes);
+  sendBackupExportChunk(String(boardFamilyName()), payloadBytes);
+  sendBackupExportChunk(F("\",\"compileFqbn\":\""), payloadBytes);
+  sendBackupExportChunk(String(ESP32S3_N16R8_FQBN), payloadBytes);
+  sendBackupExportChunk(F("\",\"compileOptions\":\""), payloadBytes);
+  sendBackupExportChunk(String(ESP32S3_N16R8_OPTIONS), payloadBytes);
+  sendBackupExportChunk(F("\",\"stripProfile\":\""), payloadBytes);
+  sendBackupExportChunk(String(ACTIVE_HARDWARE_PROFILE.profileName), payloadBytes);
+  sendBackupExportChunk(F("\",\"configuredLedCount\":"), payloadBytes);
+  sendBackupExportChunk(String(getConfiguredLedCount()), payloadBytes);
+  sendBackupExportChunk(
+    F(",\"importStatus\":\"Full backup import validates schema; use selective import routes for applied restores\""
       ",\"excludes\":[\"wifiCredentials\",\"otaPassword\",\"runtimeTimerState\",\"runtimeTransitionState\"]"
       ",\"scenes\":"),
     payloadBytes
@@ -208,8 +233,15 @@ void handleApiDocsPage() {
   page += F("<h1>BedroomLedController API Reference</h1>");
   page += F("<p><a href='/'>Controls</a> | <a href='/schedule'>Schedule</a> | <a href='/diagnostics'>Diagnostics</a> | <a href='/ota'>OTA</a></p>");
   page += F("<section><h2>State</h2><ul>");
+  page += F("<li>ESP32-S3 / N16R8 target: <code>ESP32-S3-N16R8</code>.</li>");
+  page += F("<li>Arduino CLI compile target: <code>");
+  page += ESP32S3_N16R8_FQBN;
+  page += F(":");
+  page += ESP32S3_N16R8_OPTIONS;
+  page += F("</code>.</li>");
   page += F("<li><code>GET /api/state</code> and <code>GET /state</code> return current lighting state.</li>");
   page += F("<li><code>GET /api/brightness?value=0..255</code>, <code>/api/color?hex=%23RRGGBB</code>, <code>/api/temperature?kelvin=2700..6500</code>, <code>/api/mode?mode=solid</code>.</li>");
+  page += F("<li><code>GET /api/animation?strength=0..255</code> updates Animation Strength; <code>/api/intensity?value=0..255</code> remains as a compatibility alias.</li>");
   page += F("</ul></section><section><h2>Scenes</h2><ul>");
   page += F("<li><code>GET /api/scenes</code>, <code>/api/scenes/save?name=Reading</code>, <code>/api/scenes/load?id=reading</code>.</li>");
   page += F("<li><code>GET /api/scenes/rename?id=reading&amp;name=New</code>, <code>/api/scenes/delete?id=reading</code>.</li>");

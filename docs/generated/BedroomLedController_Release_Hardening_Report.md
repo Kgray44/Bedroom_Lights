@@ -104,7 +104,7 @@ Python contract tests: `python -m unittest discover -s tests -v` passed, 124 tes
 - Free heap after `/api/schedule`: 7,880 bytes.
 - Free heap after `/api/backup/export`: 7,848 bytes.
 - LittleFS total/used/free: 2,072,576 / 49,152 / 2,023,424 bytes.
-- OTA page and browser updater page reachability: tested; no OTA upload was performed.
+- OTA page and browser updater page reachability: tested. A later OTA firmware upload passed with direct `espota.py` after pinning the host IP to the Wi-Fi interface.
 - Physical visual LED behavior: not independently observed; not measured by Codex.
 
 ## Recommendation

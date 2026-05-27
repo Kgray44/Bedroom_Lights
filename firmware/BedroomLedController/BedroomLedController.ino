@@ -1,10 +1,10 @@
 /*
   BedroomLedController
 
-  D1 mini + WS2812 bedroom strip controller.
+  Bedroom strip controller.
 
-  Board: LOLIN/WEMOS D1 mini or compatible ESP8266
-  LED data pin: D3 / GPIO0
+  Board: ESP32-S3-N16R8 class by default; ESP8266 remains conditionally supported.
+  LED data pin: Config.h / HardwareProfile.h LED_DATA_PIN
   Required library: Adafruit NeoPixel
 
   Edit Config.h before the first USB upload.
@@ -12,9 +12,18 @@
 
 #include <Arduino.h>
 #include <ArduinoOTA.h>
+#if defined(ESP8266)
 #include <ESP8266HTTPUpdateServer.h>
 #include <ESP8266WebServer.h>
 #include <ESP8266WiFi.h>
+#elif defined(ESP32)
+#include <WiFi.h>
+#include <WebServer.h>
+#include <HTTPUpdateServer.h>
+#include <esp_system.h>
+#else
+#error "Unsupported board"
+#endif
 #include <LittleFS.h>
 #include <math.h>
 #include <time.h>
@@ -24,12 +33,18 @@
 #define D3 0
 #endif
 
+#include "HardwareProfile.h"
 #include "Config.h"
 #include "ControllerTypes.h"
 
 Adafruit_NeoPixel strip(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
+#if defined(ESP8266)
 ESP8266WebServer server(80);
 ESP8266HTTPUpdateServer httpUpdater;
+#elif defined(ESP32)
+WebServer server(80);
+HTTPUpdateServer httpUpdater;
+#endif
 
 ControllerSettings settings;
 RgbPixel frameBuffer[LED_COUNT];
@@ -123,7 +138,7 @@ void setup() {
   Serial.begin(115200);
   delay(50);
 
-  randomSeed(ESP.getCycleCount());
+  randomSeed(platformRandomSeed());
 
   applyDefaultSettings();
 
@@ -132,6 +147,7 @@ void setup() {
   clearFrame();
   outputFrameToStrip();
 
+  settingsStorageReady = filesystemBegin();
   loadSettings();
   loadPalettes();
   loadScenes();

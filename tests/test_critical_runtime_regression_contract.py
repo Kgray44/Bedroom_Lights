@@ -167,7 +167,7 @@ class CriticalRuntimeRegressionContractTests(unittest.TestCase):
         self.assertIn("freeSketchSpaceBytes", diagnostics)
         self.assertIn("json.length() == 0 || json[json.length() - 1] != '}'", diagnostics)
         self.assertIn("json.length() == 0 || json[json.length() - 1] != ']'", diagnostics)
-        self.assertIn("ESP.getMaxFreeBlockSize() < 4800", diagnostics)
+        self.assertIn("platformMaxFreeBlockSize() < 4800", diagnostics)
         self.assertIn("String metricsJson = buildEndpointHeapMetricsJson();", diagnostics)
 
     def test_report_documents_live_findings_and_unproven_items(self):

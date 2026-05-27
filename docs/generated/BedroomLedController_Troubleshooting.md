@@ -54,7 +54,7 @@ The LED data pin is configured as D3 / GPIO0. On ESP8266 boards, GPIO0 affects b
 - Diagnostics reports `otaRoutePresent` and `browserUpdateRoutePresent`.
 - Diagnostics reports `freeSketchSpaceBytes`; OTA can fail if free sketch space is too low for the uploaded binary.
 - If OTA fails after a large feature build, upload over USB first, then check `/api/diagnostics`.
-- Final OTA capability check: `/ota` returned HTTP 200, `/update` returned HTTP 401 without auth and HTTP 200 with local OTA credentials. OTA firmware upload was not performed.
+- Final OTA capability check: `/ota` returned HTTP 200, `/update` returned HTTP 401 without auth and HTTP 200 with local OTA credentials. A later OTA firmware upload passed with direct `espota.py` after pinning the host IP to the Wi-Fi interface.
 
 ## Backup issues
 

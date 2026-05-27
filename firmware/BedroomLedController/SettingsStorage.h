@@ -100,15 +100,17 @@ void applyDefaultSettings() {
   settings.slowPulseCount = 5;
   settings.slowPulseMaxSec = 20;
   settings.rainbowPeriodSec = 10;
+  settings.candleHallFlickerAmount = 3;
+  settings.animationStrength = 128;
   settings.bootBehavior = "restore";
   settings.gammaEnabled = true;
   settings.redGain = 255;
   settings.greenGain = 255;
   settings.blueGain = 255;
-  settings.supplyMillivolts = 5000;
-  settings.supplyMilliamps = 5000;
-  settings.supplySafetyMarginPercent = 20;
-  settings.controllerOverheadMilliamps = 200;
+  settings.supplyMillivolts = ACTIVE_HARDWARE_PROFILE.supplyMillivolts;
+  settings.supplyMilliamps = ACTIVE_HARDWARE_PROFILE.supplyMilliamps;
+  settings.supplySafetyMarginPercent = ACTIVE_HARDWARE_PROFILE.safetyMarginPercent;
+  settings.controllerOverheadMilliamps = ACTIVE_HARDWARE_PROFILE.controllerOverheadMilliamps;
   settings.nightGuardEnabled = false;
   settings.nightGuardMaxBrightness = NIGHT_GUARD_DEFAULT_MAX_BRIGHTNESS;
   settings.nightGuardBlockFlashingModes = true;
@@ -146,7 +148,9 @@ void applyBootBehavior() {
 }
 
 void loadSettings() {
-  settingsStorageReady = LittleFS.begin();
+  if (!settingsStorageReady) {
+    settingsStorageReady = filesystemBegin();
+  }
   if (!settingsStorageReady) {
     settingsLoadedOk = false;
     settingsLoadStatus = "LittleFS unavailable; defaults active";
@@ -221,6 +225,14 @@ void loadSettings() {
   }
   if (readJsonInt(json, "rainbowPeriodSec", intValue)) {
     settings.rainbowPeriodSec = constrain(intValue, 1, 30);
+  }
+  if (readJsonInt(json, "candleHallFlickerAmount", intValue)) {
+    settings.candleHallFlickerAmount = constrain(intValue, 0, 20);
+  }
+  if (readJsonInt(json, "animationStrength", intValue)) {
+    settings.animationStrength = constrain(intValue, 0, 255);
+  } else if (readJsonInt(json, "animationIntensity", intValue)) {
+    settings.animationStrength = constrain(intValue, 0, 255);
   }
   if (readJsonString(json, "bootBehavior", textValue)) {
     settings.bootBehavior = normalizeBootBehavior(textValue);
@@ -323,7 +335,7 @@ void saveSettings() {
   }
 
   String json;
-  json.reserve(1240);
+  json.reserve(1280);
   // settings schema {"version":7 includes palette state; Phase 4A appends local UTC offset.
   json += F("{\"version\":7");
   json += F(",\"mode\":\"");
@@ -354,6 +366,12 @@ void saveSettings() {
   json += settings.slowPulseMaxSec;
   json += F(",\"rainbowPeriodSec\":");
   json += settings.rainbowPeriodSec;
+  json += F(",\"candleHallFlickerAmount\":");
+  json += settings.candleHallFlickerAmount;
+  json += F(",\"animationStrength\":");
+  json += settings.animationStrength;
+  json += F(",\"animationIntensity\":");
+  json += settings.animationStrength;
   json += F(",\"bootBehavior\":\"");
   json += normalizeBootBehavior(settings.bootBehavior);
   json += F("\",\"gammaEnabled\":");

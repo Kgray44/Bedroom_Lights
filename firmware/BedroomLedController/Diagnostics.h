@@ -102,7 +102,7 @@ const char DIAGNOSTICS_HTML[] PROGMEM = R"rawliteral(
     <section>
       <h2>Power Estimate</h2>
       <dl id="power"></dl>
-      <p class="note">These values are estimates based on the common WS2812 worst-case assumption of about 60 mA per LED at full RGB white. The controller does not measure real current draw.</p>
+      <p class="note">These values are estimates based on the active hardware profile and its selected mA-per-pixel source. The controller does not measure real current draw.</p>
     </section>
     <section class="wide">
       <h2>Power Supply</h2>
@@ -161,6 +161,8 @@ async function refreshDiagnostics() {
 
   rows($('controller'), [
     ['Hostname', diagnostics.hostname],
+    ['Board Family', diagnostics.boardFamily],
+    ['Board Profile', diagnostics.boardProfile],
     ['IP Address', diagnostics.ip],
     ['Wi-Fi', diagnostics.wifiConnected ? 'Connected' : 'Access point / offline'],
     ['SSID', diagnostics.ssid || 'Unavailable'],
@@ -171,9 +173,14 @@ async function refreshDiagnostics() {
   ]);
 
   rows($('led'), [
-    ['LED Count', diagnostics.ledCount],
+    ['Strip Profile', diagnostics.stripProfile],
+    ['Strip Length', `${diagnostics.stripLengthMm} mm`],
+    ['LED Density', `${diagnostics.ledDensityPerMeter} / m`],
+    ['LED Count', diagnostics.configuredLedCount || diagnostics.ledCount],
+    ['mm / Pixel', diagnostics.mmPerPixel],
     ['LED Pin', diagnostics.ledPin],
     ['Strip Type', diagnostics.stripType],
+    ['Frame Interval', `${diagnostics.targetFrameIntervalMs} ms`],
     ['Master Brightness', `${diagnostics.masterBrightness} / 255 (${diagnostics.masterBrightnessPercent}%)`],
     ['Effective Brightness', `${diagnostics.effectiveBrightness} / 255`],
     ['Night Guard Cap', diagnostics.nightGuardBrightnessCapped ? 'Active' : 'Inactive'],
@@ -259,6 +266,8 @@ async function refreshDiagnostics() {
   ]);
 
   rows($('power'), [
+    ['Estimate Source', power.powerEstimateSource],
+    ['mA / Pixel', power.powerEstimateMilliampsPerPixel],
     ['Worst-case LED Current', fmtMa(power.maxLedCurrentMilliamps)],
     ['Worst-case LED Power', fmtMw(power.maxLedPowerMilliwatts)],
     ['Estimated LED Current', fmtMa(power.estimatedLedCurrentMilliamps)],
@@ -345,6 +354,14 @@ String ipAddressString() {
   return WiFi.softAPIP().toString();
 }
 
+bool readActiveFilesystemInfo(FilesystemInfoSnapshot& fsInfo) {
+  if (!settingsStorageReady) {
+    fsInfo = {0, 0};
+    return false;
+  }
+  return readFilesystemInfo(fsInfo);
+}
+
 String colorHexString() {
   char hex[7];
   snprintf(hex, sizeof(hex), "%02X%02X%02X", settings.color.r, settings.color.g, settings.color.b);
@@ -361,7 +378,12 @@ uint32_t safeSubtractCurrent(uint32_t value, uint32_t subtract) {
 
 PowerEstimate buildPowerEstimate() {
   PowerEstimate estimate;
-  estimate.maxLedCurrentMilliamps = static_cast<uint32_t>(LED_COUNT) * 60UL;
+  estimate.configuredLedCount = LED_COUNT;
+  estimate.milliampsPerPixelFullWhite = ACTIVE_HARDWARE_PROFILE.milliampsPerPixelFullWhite;
+  estimate.estimateSource = ACTIVE_HARDWARE_PROFILE.estimateSource;
+  estimate.maxLedCurrentMilliamps = static_cast<uint32_t>(
+    (static_cast<float>(estimate.configuredLedCount) * estimate.milliampsPerPixelFullWhite) + 0.5f
+  );
   estimate.maxLedPowerMilliwatts =
     (static_cast<uint32_t>(settings.supplyMillivolts) * estimate.maxLedCurrentMilliamps) / 1000UL;
   estimate.estimatedLedCurrentMilliamps =
@@ -408,13 +430,13 @@ String buildWarningsJson(const PowerEstimate& estimate) {
   if (estimate.aboveRecommendedCap) {
     appendWarning(json, first, F("power_brightness"), F("Current brightness may exceed the configured power supply safety estimate."));
   }
-  if (LED_PIN == D3) {
-    appendWarning(json, first, F("gpio0_boot_pin"), F("D3/GPIO0 can affect ESP8266 boot mode if pulled low during startup."));
+  if (isLedPinBootSensitive()) {
+    appendWarning(json, first, F("boot_pin"), F("Configured LED data GPIO is boot-sensitive on this board; change LED_DATA_PIN if startup is unreliable."));
   }
   if (WiFi.status() == WL_CONNECTED && WiFi.RSSI() < -75) {
     appendWarning(json, first, F("weak_wifi"), F("Wi-Fi signal is weak. OTA and web control may be unreliable."));
   }
-  if (ESP.getFreeHeap() < 18000) {
+  if (platformFreeHeap() < 18000) {
     appendWarning(json, first, F("low_heap"), F("Free heap is low. Large pages or complex animations may become unstable."));
   }
   if (!settingsLoadedOk ||
@@ -455,6 +477,28 @@ String buildPowerJson() {
   json += R"json({"ok":true,"estimateOnly":true)json";
   json += R"json(,"ledCount":)json";
   json += LED_COUNT;
+  json += R"json(,"configuredLedCount":)json";
+  json += estimate.configuredLedCount;
+  json += R"json(,"stripProfile":")json";
+  json += escapeJson(ACTIVE_HARDWARE_PROFILE.profileName);
+  json += R"json(","stripLengthMm":)json";
+  json += ACTIVE_HARDWARE_PROFILE.stripLengthMm;
+  json += R"json(,"ledDensityPerMeter":)json";
+  json += String(ACTIVE_HARDWARE_PROFILE.ledDensityPerMeter, 2);
+  json += R"json(,"mmPerPixel":)json";
+  json += String(getMmPerPixel(), 3);
+  json += R"json(,"targetFrameIntervalMs":)json";
+  json += ACTIVE_HARDWARE_PROFILE.targetFrameIntervalMs;
+  json += R"json(,"powerEstimateMilliampsPerPixel":)json";
+  json += String(estimate.milliampsPerPixelFullWhite, 2);
+  json += R"json(,"powerEstimateSource":")json";
+  json += escapeJson(estimate.estimateSource);
+  json += R"json(","boardFamily":")json";
+  json += boardFamilyName();
+  json += R"json(","boardProfile":")json";
+  json += boardProfileName();
+  json += R"json(","dataPin":)json";
+  json += LED_PIN;
   json += R"json(,"supplyMillivolts":)json";
   json += settings.supplyMillivolts;
   json += R"json(,"supplyMilliamps":)json";
@@ -501,13 +545,13 @@ void updateResourceStats() {
   uint32_t nowMs = millis();
   if (resourceStatsLastSampleMs == 0 ||
       (uint32_t)(nowMs - resourceStatsLastSampleMs) >= 1000UL) {
-    noteFreeHeap(ESP.getFreeHeap());
+    noteFreeHeap(platformFreeHeap());
     resourceStatsLastSampleMs = nowMs;
   }
 }
 
 uint32_t beginEndpointHeapMetric(const char* route) {
-  uint32_t heapBefore = ESP.getFreeHeap();
+  uint32_t heapBefore = platformFreeHeap();
   noteFreeHeap(heapBefore);
   return heapBefore;
 }
@@ -522,7 +566,7 @@ int findEndpointHeapMetric(const char* route) {
 }
 
 void finishEndpointHeapMetric(const char* route, uint32_t heapBeforeBytes, uint32_t payloadBytes) {
-  uint32_t heapAfter = ESP.getFreeHeap();
+  uint32_t heapAfter = platformFreeHeap();
   noteFreeHeap(heapAfter);
 
   int index = findEndpointHeapMetric(route);
@@ -577,13 +621,13 @@ String buildEndpointHeapMetricsJson() {
 }
 
 String buildResourcesJson() {
-  FSInfo fsInfo;
-  bool fsInfoAvailable = settingsStorageReady && LittleFS.info(fsInfo);
-  uint32_t freeHeapNow = ESP.getFreeHeap();
+  FilesystemInfoSnapshot fsInfo;
+  bool fsInfoAvailable = readActiveFilesystemInfo(fsInfo);
+  uint32_t freeHeapNow = platformFreeHeap();
   noteFreeHeap(freeHeapNow);
 
   String json;
-  json.reserve(820);
+  json.reserve(1160);
   json += R"json({"ok":true,"uptimeMs":)json";
   json += millis();
   json += R"json(,"hostname":")json";
@@ -594,18 +638,30 @@ String buildResourcesJson() {
   json += boolJson(WiFi.status() == WL_CONNECTED);
   json += R"json(,"rssi":)json";
   json += WiFi.status() == WL_CONNECTED ? WiFi.RSSI() : 0;
+  json += R"json(,"boardFamily":")json";
+  json += boardFamilyName();
+  json += R"json(","boardProfile":")json";
+  json += boardProfileName();
+  json += R"json(","compileFqbn":")json";
+  json += ESP32S3_N16R8_FQBN;
+  json += R"json(","compileOptions":")json";
+  json += ESP32S3_N16R8_OPTIONS;
+  json += R"json(","psramPresent":)json";
+  json += boolJson(platformHasPsram());
+  json += R"json(,"psramSizeBytes":)json";
+  json += platformPsramSizeBytes();
   json += R"json(,"freeHeapNow":)json";
   json += freeHeapNow;
   json += R"json(,"maxFreeBlockSize":)json";
-  json += ESP.getMaxFreeBlockSize();
+  json += platformMaxFreeBlockSize();
   json += R"json(,"heapFragmentationPercent":)json";
-  json += ESP.getHeapFragmentation();
+  json += platformHeapFragmentationPercent();
   json += R"json(,"minFreeHeapSinceBoot":)json";
   json += minFreeHeapSeen;
   json += R"json(,"sketchSizeBytes":)json";
-  json += ESP.getSketchSize();
+  json += platformSketchSize();
   json += R"json(,"freeSketchSpaceBytes":)json";
-  json += ESP.getFreeSketchSpace();
+  json += platformFreeSketchSpace();
   json += R"json(,"littleFsMeasured":)json";
   json += boolJson(fsInfoAvailable);
   json += R"json(,"littleFsTotalBytes":)json";
@@ -614,8 +670,20 @@ String buildResourcesJson() {
   json += fsInfoAvailable ? fsInfo.usedBytes : 0;
   json += R"json(,"littleFsFreeBytes":)json";
   json += fsInfoAvailable && fsInfo.totalBytes >= fsInfo.usedBytes ? fsInfo.totalBytes - fsInfo.usedBytes : 0;
+  json += R"json(,"configuredLedCount":)json";
+  json += getConfiguredLedCount();
+  json += R"json(,"stripLengthMm":)json";
+  json += ACTIVE_HARDWARE_PROFILE.stripLengthMm;
+  json += R"json(,"ledDensityPerMeter":)json";
+  json += String(ACTIVE_HARDWARE_PROFILE.ledDensityPerMeter, 2);
+  json += R"json(,"targetFrameIntervalMs":)json";
+  json += ACTIVE_HARDWARE_PROFILE.targetFrameIntervalMs;
   json += R"json(,"masterBrightness":)json";
   json += settings.masterBrightness;
+  json += R"json(,"animationStrength":)json";
+  json += settings.animationStrength;
+  json += R"json(,"animationStrengthPercent":)json";
+  json += static_cast<uint8_t>((static_cast<uint16_t>(settings.animationStrength) * 100U + 127U) / 255U);
   json += R"json(,"effectiveBrightness":)json";
   json += getEffectiveBrightness();
   json += R"json(,"lastMutationRoute":")json";
@@ -634,7 +702,7 @@ String buildResourcesJson() {
   json += escapeJson(fixedString(lastMutation.afterMode));
   json += R"json(")json";
   json += R"json(,"endpointHeapMetrics":)json";
-  if (ESP.getMaxFreeBlockSize() < 4800) {
+  if (platformMaxFreeBlockSize() < 4800) {
     json += F("[]");
   } else {
     String metricsJson = buildEndpointHeapMetricsJson();
@@ -653,15 +721,46 @@ String buildDiagnosticsJson() {
   String ssid = WiFi.status() == WL_CONNECTED ? WiFi.SSID() : String("");
   String displayName = modeDisplayName(settings.mode);
   String category = modeCategory(settings.mode);
-  FSInfo fsInfo;
-  bool fsInfoAvailable = settingsStorageReady && LittleFS.info(fsInfo);
-  uint32_t freeHeapNow = ESP.getFreeHeap();
+  FilesystemInfoSnapshot fsInfo;
+  bool fsInfoAvailable = readActiveFilesystemInfo(fsInfo);
+  uint32_t freeHeapNow = platformFreeHeap();
   noteFreeHeap(freeHeapNow);
   String json;
-  json.reserve(3940);
+  json.reserve(4620);
   json += R"json({"ok":true)json";
   json += R"json(,"projectVersion":"Phase 4D")json";
-  json += R"json(,"boardTarget":"esp8266:esp8266:d1_mini")json";
+  json += R"json(,"boardTarget":")json";
+  json += escapeJson(boardProfileName());
+  json += R"json(","boardFamily":")json";
+  json += boardFamilyName();
+  json += R"json(","boardProfile":")json";
+  json += boardProfileName();
+  json += R"json(","compileFqbn":")json";
+  json += ESP32S3_N16R8_FQBN;
+  json += R"json(","compileOptions":")json";
+  json += ESP32S3_N16R8_OPTIONS;
+  json += R"json(","psramPresent":)json";
+  json += boolJson(platformHasPsram());
+  json += R"json(,"psramSizeBytes":)json";
+  json += platformPsramSizeBytes();
+  json += R"json(","stripProfile":")json";
+  json += escapeJson(ACTIVE_HARDWARE_PROFILE.profileName);
+  json += R"json(","stripLengthMm":)json";
+  json += ACTIVE_HARDWARE_PROFILE.stripLengthMm;
+  json += R"json(,"ledDensityPerMeter":)json";
+  json += String(ACTIVE_HARDWARE_PROFILE.ledDensityPerMeter, 2);
+  json += R"json(,"configuredLedCount":)json";
+  json += getConfiguredLedCount();
+  json += R"json(,"mmPerPixel":)json";
+  json += String(getMmPerPixel(), 3);
+  json += R"json(,"targetFrameIntervalMs":)json";
+  json += ACTIVE_HARDWARE_PROFILE.targetFrameIntervalMs;
+  json += R"json(,"powerEstimateMilliampsPerPixel":)json";
+  json += String(estimate.milliampsPerPixelFullWhite, 2);
+  json += R"json(,"powerEstimateSource":")json";
+  json += escapeJson(estimate.estimateSource);
+  json += R"json(","dataPin":)json";
+  json += LED_PIN;
   json += R"json(,"hostname":")json";
   json += escapeJson(DEVICE_HOSTNAME);
   json += R"json(","ip":")json";
@@ -679,15 +778,15 @@ String buildDiagnosticsJson() {
   json += R"json(,"freeHeapNow":)json";
   json += freeHeapNow;
   json += R"json(,"maxFreeBlockSize":)json";
-  json += ESP.getMaxFreeBlockSize();
+  json += platformMaxFreeBlockSize();
   json += R"json(,"heapFragmentationPercent":)json";
-  json += ESP.getHeapFragmentation();
+  json += platformHeapFragmentationPercent();
   json += R"json(,"minFreeHeapSinceBoot":)json";
   json += minFreeHeapSeen;
   json += R"json(,"sketchSizeBytes":)json";
-  json += ESP.getSketchSize();
+  json += platformSketchSize();
   json += R"json(,"freeSketchSpaceBytes":)json";
-  json += ESP.getFreeSketchSpace();
+  json += platformFreeSketchSpace();
   json += R"json(,"littleFsMeasured":)json";
   json += boolJson(fsInfoAvailable);
   json += R"json(,"littleFsTotalBytes":)json";
@@ -699,13 +798,17 @@ String buildDiagnosticsJson() {
   json += R"json(,"otaRoutePresent":true)json";
   json += R"json(,"browserUpdateRoutePresent":true)json";
   json += R"json(,"resetReason":")json";
-  json += escapeJson(ESP.getResetReason());
+  json += escapeJson(platformResetReason());
   json += R"json(","ledCount":)json";
   json += LED_COUNT;
-  json += R"json(,"ledPin":"D3/GPIO0")json";
+  json += R"json(,"ledPin":")json";
+  json += escapeJson(ledPinLabel());
+  json += R"json(")json";
   json += R"json(,"ledPinBootSensitive":)json";
-  json += boolJson(LED_PIN == D3);
-  json += R"json(,"stripType":"WS2812 / NeoPixel GRB")json";
+  json += boolJson(isLedPinBootSensitive());
+  json += R"json(,"stripType":")json";
+  json += escapeJson(ACTIVE_HARDWARE_PROFILE.stripType);
+  json += R"json(")json";
   json += R"json(,"mode":")json";
   json += modeKey(settings.mode);
   json += R"json(","modeDisplayName":")json";
@@ -744,6 +847,10 @@ String buildDiagnosticsJson() {
   json += settings.masterBrightness;
   json += R"json(,"masterBrightnessPercent":)json";
   json += masterBrightnessPercent();
+  json += R"json(,"animationStrength":)json";
+  json += settings.animationStrength;
+  json += R"json(,"animationStrengthPercent":)json";
+  json += static_cast<uint8_t>((static_cast<uint16_t>(settings.animationStrength) * 100U + 127U) / 255U);
   json += R"json(,"effectiveBrightness":)json";
   json += getEffectiveBrightness();
   json += R"json(,"nightGuardEnabled":)json";
@@ -907,13 +1014,37 @@ String buildDiagnosticsJson() {
 
 String buildCompactDiagnosticsJson(const char* reason) {
   updateResourceStats();
-  FSInfo fsInfo;
-  bool fsInfoAvailable = settingsStorageReady && LittleFS.info(fsInfo);
+  FilesystemInfoSnapshot fsInfo;
+  bool fsInfoAvailable = readActiveFilesystemInfo(fsInfo);
 
   String json;
-  json.reserve(1200);
+  json.reserve(1520);
   json += R"json({"ok":true,"diagnosticsReduced":true,"reason":")json";
   json += escapeJson(reason);
+  json += R"json(","boardFamily":")json";
+  json += boardFamilyName();
+  json += R"json(","boardProfile":")json";
+  json += boardProfileName();
+  json += R"json(","compileFqbn":")json";
+  json += ESP32S3_N16R8_FQBN;
+  json += R"json(","compileOptions":")json";
+  json += ESP32S3_N16R8_OPTIONS;
+  json += R"json(","psramPresent":)json";
+  json += boolJson(platformHasPsram());
+  json += R"json(,"psramSizeBytes":)json";
+  json += platformPsramSizeBytes();
+  json += R"json(","stripProfile":")json";
+  json += escapeJson(ACTIVE_HARDWARE_PROFILE.profileName);
+  json += R"json(","configuredLedCount":)json";
+  json += getConfiguredLedCount();
+  json += R"json(,"stripLengthMm":)json";
+  json += ACTIVE_HARDWARE_PROFILE.stripLengthMm;
+  json += R"json(,"ledDensityPerMeter":)json";
+  json += String(ACTIVE_HARDWARE_PROFILE.ledDensityPerMeter, 2);
+  json += R"json(,"mmPerPixel":)json";
+  json += String(getMmPerPixel(), 3);
+  json += R"json(,"targetFrameIntervalMs":)json";
+  json += ACTIVE_HARDWARE_PROFILE.targetFrameIntervalMs;
   json += R"json(","hostname":")json";
   json += escapeJson(DEVICE_HOSTNAME);
   json += R"json(","ip":")json";
@@ -921,17 +1052,17 @@ String buildCompactDiagnosticsJson(const char* reason) {
   json += R"json(","uptimeMs":)json";
   json += millis();
   json += R"json(,"freeHeap":)json";
-  json += ESP.getFreeHeap();
+  json += platformFreeHeap();
   json += R"json(,"maxFreeBlockSize":)json";
-  json += ESP.getMaxFreeBlockSize();
+  json += platformMaxFreeBlockSize();
   json += R"json(,"heapFragmentationPercent":)json";
-  json += ESP.getHeapFragmentation();
+  json += platformHeapFragmentationPercent();
   json += R"json(,"minFreeHeapSinceBoot":)json";
   json += minFreeHeapSeen;
   json += R"json(,"sketchSizeBytes":)json";
-  json += ESP.getSketchSize();
+  json += platformSketchSize();
   json += R"json(,"freeSketchSpaceBytes":)json";
-  json += ESP.getFreeSketchSpace();
+  json += platformFreeSketchSpace();
   json += R"json(,"littleFsMeasured":)json";
   json += boolJson(fsInfoAvailable);
   json += R"json(,"littleFsTotalBytes":)json";
@@ -941,13 +1072,17 @@ String buildCompactDiagnosticsJson(const char* reason) {
   json += R"json(,"littleFsFreeBytes":)json";
   json += fsInfoAvailable && fsInfo.totalBytes >= fsInfo.usedBytes ? fsInfo.totalBytes - fsInfo.usedBytes : 0;
   json += R"json(,"resetReason":")json";
-  json += escapeJson(ESP.getResetReason());
+  json += escapeJson(platformResetReason());
   json += R"json(","mode":")json";
   json += modeKey(settings.mode);
   json += R"json(","colorHex":"#)json";
   json += colorHexString();
   json += R"json(","masterBrightness":)json";
   json += settings.masterBrightness;
+  json += R"json(,"animationStrength":)json";
+  json += settings.animationStrength;
+  json += R"json(,"animationStrengthPercent":)json";
+  json += static_cast<uint8_t>((static_cast<uint16_t>(settings.animationStrength) * 100U + 127U) / 255U);
   json += R"json(,"effectiveBrightness":)json";
   json += getEffectiveBrightness();
   json += R"json(,"settingsDirty":)json";

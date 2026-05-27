@@ -133,7 +133,8 @@ Mode changes into Phase 4C modes use the existing smooth transition system becau
 - Added API parsing for all nine normalized tokens.
 - Added `modeKey()` cases for state JSON, scenes, schedules, and UI selection.
 - Added Weather and Nature options to the Surprise Me mood dropdown and options JSON.
-- No mode-specific control panels were added; safe defaults are used.
+- Added a Candle Hall flicker amount control exposed in the Web UI, `/api/state`, `/set`, saved settings, and scene JSON.
+- Expanded Candle Hall flicker from 0-10 to 0-20 and gave each candle its own deterministic brightness, width, drift, pulse timing, micro-flicker, and warmth blend.
 
 ## Resource report
 

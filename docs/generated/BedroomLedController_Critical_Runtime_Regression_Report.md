@@ -33,7 +33,7 @@ Final USB upload to `COM5` succeeded. The board booted at `192.168.1.201`.
 - Browser refresh mutation check: Playwright loaded and reloaded `/`; 14 board requests were observed, all read-only, with `mutationCount=0`. State remained brightness `77`, color `00AAFF`, mode `solid`.
 - Heavy endpoints: `/api/state`, `/api/resources`, `/api/diagnostics`, `/api/scenes`, `/api/palettes`, and `/api/backup/export` all returned valid JSON on the final flashed build.
 - Backup export: returned 16 scenes, 10 palettes, and `diagnostics.omittedFromBackup=true`.
-- OTA capability: `/ota` returned HTTP 200; `/update` returned HTTP 401 without auth and HTTP 200 with local OTA credentials. Arduino CLI detected the network port at `192.168.1.201`. No OTA firmware upload was performed.
+- OTA capability: `/ota` returned HTTP 200; `/update` returned HTTP 401 without auth and HTTP 200 with local OTA credentials. Arduino CLI detected the network port at `192.168.1.201`.
 - Satin Breathing API soak: ran `satinBreathing` at brightness `100` for 43 seconds. API state stayed on `satinBreathing`, timer stayed inactive, schedule count stayed 0, and resources/diagnostics stayed valid.
 
 ## Satin Breathing envelope
@@ -51,16 +51,16 @@ Physical LED visual status: not independently observed by Codex.
 ## Verification Status
 
 - Arduino compile: passed for `esp8266:esp8266:d1_mini`.
-- Compile resources: RAM 60,844 / 80,192 bytes (75%); IRAM 61,383 / 65,536 bytes (93%); Flash/IROM 606,044 / 1,048,576 bytes (57%).
+- Compile resources after Candle Hall OTA pass: RAM 60,924 / 80,192 bytes (75%); IRAM 61,383 / 65,536 bytes (93%); Flash/IROM 609,560 / 1,048,576 bytes (58%).
 - USB upload: passed on `COM5`.
-- Python contract tests: `python -m unittest discover -s tests -v` passed, 138 tests.
+- Python contract tests: `python -m unittest discover -s tests -v` passed, 139 tests.
 - `node --check` on extracted Web UI script: passed.
 - Physical LED visual test: not independently observed by Codex.
-- OTA upload: not performed.
+- OTA upload: passed later via direct `espota.py` with host IP pinned to `192.168.1.43`.
 
 ## Known Limits
 
 - Runtime heap is still tight on D1 mini, especially with 140 LEDs and large web/API responses.
 - `/api/diagnostics` is intentionally compact on ESP8266; use `/api/resources` for endpoint/resource metrics.
 - Endpoint metrics may be returned as `[]` when contiguous heap is too small.
-- OTA browser updater reachability was tested, but OTA firmware upload was not performed.
+- Browser updater reachability was tested; the successful firmware upload path was direct `espota.py` OTA with host IP pinned.
