@@ -607,7 +607,7 @@ bool resetSchedules(String& error) {
 
 bool saveSchedules() {
   if (!settingsStorageReady) {
-    settingsStorageReady = LittleFS.begin();
+    settingsStorageReady = filesystemBegin();
   }
   if (!settingsStorageReady) {
     scheduleSaveStatus = "skipped; LittleFS unavailable";
@@ -642,7 +642,7 @@ void loadSchedules() {
   scheduleLoadStatus = "empty";
 
   if (!settingsStorageReady) {
-    settingsStorageReady = LittleFS.begin();
+    settingsStorageReady = filesystemBegin();
   }
   if (!settingsStorageReady) {
     scheduleLoadStatus = "LittleFS unavailable; schedules disabled";

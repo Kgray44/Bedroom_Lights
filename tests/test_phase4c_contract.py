@@ -107,6 +107,43 @@ class Phase4CRemainingModeLibraryBatch2ContractTests(unittest.TestCase):
             self.assertNotIn("new ", body)
             self.assertNotIn("random(", body)
 
+    def test_candle_hall_flicker_amount_is_adjustable_and_persisted(self):
+        types = self.files["ControllerTypes.h"]
+        storage = self.files["SettingsStorage.h"]
+        routes = self.files["WebRoutes.h"]
+        render = self.files["LedRendering.h"]
+        web_ui = self.files["WebUi.h"]
+
+        self.assertIn("uint8_t candleHallFlickerAmount;", types)
+        self.assertIn("settings.candleHallFlickerAmount = 3;", storage)
+        self.assertIn('"candleHallFlickerAmount"', storage)
+        self.assertIn("settings.candleHallFlickerAmount = constrain(intValue, 0, 20);", storage)
+        self.assertIn('R"json(,"candleHallFlickerAmount":)json"', routes)
+        self.assertIn('if (server.hasArg("candleHallFlickerAmount"))', routes)
+        self.assertIn("setByteSetting(settings.candleHallFlickerAmount, requestedAmount, 0, 20, false);", routes)
+
+        start = render.index("void renderCandleHall")
+        body = render[start:render.index("void renderSlowPrism", start)]
+        self.assertIn("settings.candleHallFlickerAmount", body)
+        self.assertIn("flickerRange", body)
+        self.assertIn("flickerFloor", body)
+        self.assertIn("candleSeed", body)
+        self.assertIn("brightnessScale", body)
+        self.assertIn("wobbleAmplitude", body)
+        self.assertIn("secondaryPulse", body)
+        self.assertIn("microFlicker", body)
+
+        self.assertIn('data-for="candleHall"', web_ui)
+        self.assertIn('id="candleHallFlickerAmount"', web_ui)
+        self.assertIn('max="20"', web_ui)
+        self.assertIn("candleHallFlickerAmountValue", web_ui)
+        self.assertIn("state.candleHallFlickerAmount", web_ui)
+        self.assertIn("sendSoon({ candleHallFlickerAmount: event.target.value })", web_ui)
+        self.assertIn("Number(state?.candleHallFlickerAmount ?? 3)", web_ui)
+        self.assertIn("Math.min(20", web_ui)
+        self.assertIn("candleTraits", web_ui)
+        self.assertIn("brightnessScale", web_ui)
+
     def test_preview_and_surprise_me_include_phase4c_modes(self):
         web_ui = self.files["WebUi.h"]
         surprise = self.files["SurpriseControls.h"]

@@ -87,6 +87,8 @@ struct ControllerSettings {
   uint8_t slowPulseCount;
   uint8_t slowPulseMaxSec;
   uint8_t rainbowPeriodSec;
+  uint8_t candleHallFlickerAmount;
+  uint8_t animationStrength;
   String bootBehavior;
   bool gammaEnabled;
   uint8_t redGain;
@@ -156,6 +158,9 @@ struct MutationAudit {
 };
 
 struct PowerEstimate {
+  uint16_t configuredLedCount;
+  float milliampsPerPixelFullWhite;
+  const char* estimateSource;
   uint32_t maxLedCurrentMilliamps;
   uint32_t maxLedPowerMilliwatts;
   uint32_t estimatedLedCurrentMilliamps;
@@ -184,6 +189,8 @@ struct ScenePreset {
   uint8_t slowPulseCount;
   uint8_t slowPulseMaxSec;
   uint8_t rainbowPeriodSec;
+  uint8_t candleHallFlickerAmount;
+  uint8_t animationStrength;
   bool builtin;
   bool isFavoriteCandidate;
   bool isSleepSafe;

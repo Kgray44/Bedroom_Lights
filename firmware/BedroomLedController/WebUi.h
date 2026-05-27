@@ -549,7 +549,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
   <header>
     <div>
       <h1>Bedroom LED Controller</h1>
-      <div class="sub">D1 mini WS2812 strip on D3 | <a href="/schedule">Schedule</a> | <a href="/diagnostics">Diagnostics</a> | <a href="/ota">OTA</a> | <a href="/api-docs">API</a></div>
+      <div class="sub">ESP32-S3 / ESP8266 addressable strip controller | <a href="/schedule">Schedule</a> | <a href="/diagnostics">Diagnostics</a> | <a href="/ota">OTA</a> | <a href="/api-docs">API</a></div>
     </div>
     <div class="pill" id="status">Connecting...</div>
   </header>
@@ -730,6 +730,12 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
           </select>
         </label>
 
+        <label>Animation Strength
+          <input id="animationStrength" type="range" min="0" max="255" step="1" value="128" aria-label="Animation Strength">
+          <span id="animationStrengthValue">Balanced - 128 / 255 - 50%</span>
+          <span class="note">Subtle to Expressive</span>
+        </label>
+
         <label class="mode-control" data-for="strobe">Strobe delay
           <select id="strobeDelay"></select>
         </label>
@@ -751,9 +757,14 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
         <label class="mode-control" data-for="rainbow">Rainbow loop time
           <select id="rainbowPeriod"></select>
         </label>
+        <label class="mode-control" data-for="candleHall">Candle flicker
+          <input id="candleHallFlickerAmount" type="range" min="0" max="20" step="1" value="3" aria-label="Candle Hall flicker amount">
+          <span id="candleHallFlickerAmountValue">3 / 20</span>
+        </label>
       </div>
       <div class="mode-description" id="modeDescription"></div>
       <div class="mode-tags" id="modeTags"></div>
+      <p class="note">Animation Strength controls motion, contrast, shimmer, and color spread inside animated modes. Master Brightness still controls total light output.</p>
       <p class="note">OTA updates are available from <a href="/ota">the OTA page</a>. Setup tools are on <a href="/diagnostics">Diagnostics</a>.</p>
     </section>
 
@@ -972,6 +983,7 @@ let heavyRequestQueue = Promise.resolve();
 let heavyRequestActive = false;
 let heavyRequestQueued = false;
 let nightGuardDebounceTimer = null;
+let animationStrengthDebounceTimer = null;
 let uiHydrating = true;
 let stateLoaded = false;
 
@@ -1207,6 +1219,7 @@ function setButtonBusy(id, busy, busyText) {
 
 function messageForParams(params) {
   if ('masterBrightness' in params) return ['Saving brightness...', 'Brightness saved'];
+  if ('animationStrength' in params) return ['Saving Animation Strength...', 'Animation Strength saved'];
   if ('color' in params) return ['Saving color...', 'Color saved'];
   if ('kelvin' in params) return ['Saving white temperature...', 'White temperature saved'];
   if ('mode' in params) return ['Changing mode...', 'Mode changed'];
@@ -1330,12 +1343,23 @@ function paletteOrBase(state, position, fallback) {
   return samplePaletteColor(activePreviewPaletteColors(state), position) || fallback;
 }
 
+function previewStrength01(state = previewState || lastState) {
+  const raw = Number(state?.animationStrength ?? state?.animationIntensity ?? 128);
+  return Math.max(0, Math.min(255, raw)) / 255;
+}
+
+function previewStrengthEase(state = previewState || lastState) {
+  const s = previewStrength01(state);
+  return s * s * (3 - 2 * s);
+}
+
 function renderPreviewSolid(state, timeMs) {
   const base = previewBaseColor(state);
   return makePreviewPixels(() => base);
 }
 
 function renderPreviewStrobe(state, timeMs) {
+  const strength = previewStrength01(state);
   const seconds = Math.max(.1, Number(state?.strobeDelay || 0.5));
   const on = Math.floor(timeMs / (seconds * 1000)) % 2 === 0;
   const base = previewBaseColor(state);
@@ -1343,6 +1367,7 @@ function renderPreviewStrobe(state, timeMs) {
 }
 
 function renderPreviewFlash(state, timeMs) {
+  const strength = previewStrength01(state);
   const seconds = Math.max(.1, Number(state?.flashOffDelay || 0.5));
   const on = (timeMs % (seconds * 2000)) < 120;
   const base = previewBaseColor(state);
@@ -1350,6 +1375,7 @@ function renderPreviewFlash(state, timeMs) {
 }
 
 function renderPreviewChase(state, timeMs) {
+  const strength = previewStrength01(state);
   const base = previewBaseColor(state);
   const period = Math.max(1, Number(state?.chasePeriod || 5)) * 1000;
   const head = Math.floor((timeMs % period) / period * PREVIEW_PIXELS);
@@ -1361,6 +1387,7 @@ function renderPreviewChase(state, timeMs) {
 }
 
 function renderPreviewWave(state, timeMs) {
+  const strength = previewStrength01(state);
   const base = previewBaseColor(state);
   const period = Math.max(1, Number(state?.wavePeriod || 12)) * 1000;
   const phase = (timeMs % period) / period;
@@ -1371,10 +1398,12 @@ function renderPreviewWave(state, timeMs) {
 }
 
 function renderPreviewSlowWave(state, timeMs) {
+  const strength = previewStrength01(state);
   return renderPreviewWave({ ...state, wavePeriod: Math.max(10, Number(state?.wavePeriod || 18)) }, timeMs * .7);
 }
 
 function renderPreviewSlowPulse(state, timeMs) {
+  const strength = previewStrength01(state);
   const base = previewBaseColor(state);
   const period = Math.max(2, Number(state?.slowPulseMax || 20)) * 1000;
   const pulse = (Math.sin((timeMs % period) / period * Math.PI * 2) + 1) / 2;
@@ -1384,24 +1413,28 @@ function renderPreviewSlowPulse(state, timeMs) {
 }
 
 function renderPreviewRainbow(state, timeMs) {
+  const strength = previewStrength01(state);
   const period = Math.max(1, Number(state?.rainbowPeriod || 12)) * 1000;
   const phase = (timeMs % period) / period;
   return makePreviewPixels((index, position) => scaleRgb(hsvToRgb((position + phase) * 360, .88, 1), state?.effectiveBrightness ?? 180));
 }
 
 function renderPreviewDawnBloom(state, timeMs) {
+  const strength = previewStrength01(state);
   const warm = scaleRgb({ r: 255, g: 166, b: 86 }, state?.effectiveBrightness ?? 180);
   const rose = scaleRgb({ r: 255, g: 116, b: 132 }, state?.effectiveBrightness ?? 180);
   return makePreviewPixels((index, position) => blendRgb(warm, rose, (Math.sin(position * Math.PI + timeMs / 3800) + 1) / 2));
 }
 
 function renderPreviewMoonTide(state, timeMs) {
+  const strength = previewStrength01(state);
   const base = scaleRgb({ r: 112, g: 172, b: 255 }, state?.effectiveBrightness ?? 180);
   const deep = scaleRgb({ r: 18, g: 42, b: 86 }, state?.effectiveBrightness ?? 180);
   return makePreviewPixels((index, position) => blendRgb(deep, base, (Math.sin(position * Math.PI * 2 + timeMs / 2600) + 1) / 2));
 }
 
 function renderPreviewVelvetAurora(state, timeMs) {
+  const strength = previewStrength01(state);
   const colors = activePreviewPaletteColors(state);
   const base = previewBaseColor(state);
   return makePreviewPixels((index, position) => scaleRgb(
@@ -1411,12 +1444,14 @@ function renderPreviewVelvetAurora(state, timeMs) {
 }
 
 function renderPreviewLanternDrift(state, timeMs) {
+  const strength = previewStrength01(state);
   const amber = scaleRgb({ r: 255, g: 177, b: 92 }, state?.effectiveBrightness ?? 180);
   const ember = scaleRgb({ r: 255, g: 94, b: 42 }, state?.effectiveBrightness ?? 180);
   return makePreviewPixels((index, position) => blendRgb(amber, ember, .18 + .28 * ((Math.sin(timeMs / 1000 + position * 17) + 1) / 2)));
 }
 
 function renderPreviewRainGlass(state, timeMs) {
+  const strength = previewStrength01(state);
   const base = scaleRgb({ r: 52, g: 98, b: 132 }, state?.effectiveBrightness ?? 180);
   const glint = scaleRgb({ r: 174, g: 226, b: 255 }, state?.effectiveBrightness ?? 180);
   return makePreviewPixels((index, position) => {
@@ -1428,6 +1463,7 @@ function renderPreviewRainGlass(state, timeMs) {
 }
 
 function renderPreviewSatinBreathing(state, timeMs) {
+  const strength = previewStrength01(state);
   const phase = (timeMs % 11000) / 11000;
   const envelope = phase < .38
     ? (1 - Math.cos((phase / .38) * Math.PI)) / 2
@@ -1441,6 +1477,7 @@ function renderPreviewSatinBreathing(state, timeMs) {
 }
 
 function renderPreviewPaperLanternRow(state, timeMs) {
+  const strength = previewStrength01(state);
   const warm = scaleRgb({ r: 255, g: 178, b: 88 }, state?.effectiveBrightness ?? 180);
   const count = 5;
   return makePreviewPixels((index, position) => {
@@ -1461,6 +1498,7 @@ function renderPreviewPaperLanternRow(state, timeMs) {
 }
 
 function renderPreviewLibraryLamp(state, timeMs) {
+  const strength = previewStrength01(state);
   const warm = scaleRgb(kelvinToApproxRgb(state?.kelvin || 3400), state?.effectiveBrightness ?? 180);
   const colors = activePreviewPaletteColors(state);
   return makePreviewPixels((index, position) => {
@@ -1472,6 +1510,7 @@ function renderPreviewLibraryLamp(state, timeMs) {
 }
 
 function renderPreviewSolarNoon(state, timeMs) {
+  const strength = previewStrength01(state);
   const warm = kelvinToApproxRgb(4550);
   const cool = kelvinToApproxRgb(5400);
   const drift = (Math.sin(timeMs / 55000) + 1) / 2;
@@ -1482,6 +1521,7 @@ function renderPreviewSolarNoon(state, timeMs) {
 }
 
 function renderPreviewGoldenHour(state, timeMs) {
+  const strength = previewStrength01(state);
   const sun = { r: 255, g: 174, b: 72 };
   const cream = kelvinToApproxRgb(3100);
   const source = (Math.sin(timeMs / 33000) + 1) / 2;
@@ -1494,6 +1534,7 @@ function renderPreviewGoldenHour(state, timeMs) {
 }
 
 function renderPreviewDreamAquarium(state, timeMs) {
+  const strength = previewStrength01(state);
   const deep = { r: 18, g: 66, b: 100 };
   const aqua = { r: 62, g: 190, b: 190 };
   return makePreviewPixels((index, position) => {
@@ -1506,6 +1547,7 @@ function renderPreviewDreamAquarium(state, timeMs) {
 }
 
 function renderPreviewCircuitGlow(state, timeMs) {
+  const strength = previewStrength01(state);
   const base = { r: 6, g: 24, b: 34 };
   const trace = samplePaletteColor(activePreviewPaletteColors(state), timeMs / 9000) || { r: 22, g: 255, b: 162 };
   return makePreviewPixels((index, position) => {
@@ -1520,6 +1562,7 @@ function renderPreviewCircuitGlow(state, timeMs) {
 }
 
 function renderPreviewWindowSunrise(state, timeMs) {
+  const strength = previewStrength01(state);
   const amber = { r: 255, g: 134, b: 54 };
   const daylight = kelvinToApproxRgb(3650);
   const reach = (timeMs % 150000) / 150000;
@@ -1534,6 +1577,7 @@ function renderPreviewWindowSunrise(state, timeMs) {
 }
 
 function renderPreviewEmberQuilt(state, timeMs) {
+  const strength = previewStrength01(state);
   const warm = { r: 255, g: 128, b: 55 };
   const cream = kelvinToApproxRgb(2550);
   return makePreviewPixels((index, position) => {
@@ -1552,6 +1596,7 @@ function renderPreviewEmberQuilt(state, timeMs) {
 }
 
 function renderPreviewPorcelainSky(state, timeMs) {
+  const strength = previewStrength01(state);
   const porcelain = kelvinToApproxRgb(5100);
   const pearl = kelvinToApproxRgb(4200);
   return makePreviewPixels((index, position) => {
@@ -1565,6 +1610,7 @@ function renderPreviewPorcelainSky(state, timeMs) {
 }
 
 function renderPreviewHearthline(state, timeMs) {
+  const strength = previewStrength01(state);
   const base = { r: 150, g: 54, b: 18 };
   const amber = { r: 255, g: 150, b: 54 };
   return makePreviewPixels((index, position) => {
@@ -1584,6 +1630,7 @@ function renderPreviewHearthline(state, timeMs) {
 }
 
 function renderPreviewEveningCurrent(state, timeMs) {
+  const strength = previewStrength01(state);
   const dusk = { r: 74, g: 92, b: 136 };
   const warm = { r: 255, g: 166, b: 100 };
   return makePreviewPixels((index, position) => {
@@ -1596,6 +1643,7 @@ function renderPreviewEveningCurrent(state, timeMs) {
 }
 
 function renderPreviewStarlitLinen(state, timeMs) {
+  const strength = previewStrength01(state);
   const base = samplePaletteColor(activePreviewPaletteColors(state), 0) || { r: 255, g: 186, b: 122 };
   const highlight = kelvinToApproxRgb(3000);
   return makePreviewPixels((index, position) => {
@@ -1612,6 +1660,7 @@ function renderPreviewStarlitLinen(state, timeMs) {
 }
 
 function renderPreviewDeepSeaGlass(state, timeMs) {
+  const strength = previewStrength01(state);
   const deep = { r: 8, g: 42, b: 76 };
   const glass = { r: 74, g: 176, b: 194 };
   const glint = { r: 170, g: 232, b: 245 };
@@ -1627,38 +1676,139 @@ function renderPreviewDeepSeaGlass(state, timeMs) {
 }
 
 function renderPreviewQuietNorthernLights(state, timeMs) {
-  const night = { r: 8, g: 18, b: 38 };
-  const green = { r: 74, g: 228, b: 156 };
-  const violet = { r: 120, g: 116, b: 255 };
+  const rawIntensity = previewStrength01(state);
+  const intensity = Math.pow(rawIntensity, 1.18);
+  const auroraWaveLayerCount = rawIntensity < .25 ? 2 : rawIntensity < .55 ? 3 : rawIntensity < .82 ? 4 : 5;
+  const smooth01 = (value) => {
+    const x = Math.max(0, Math.min(1, value));
+    return x * x * (3 - 2 * x);
+  };
+  const smooth = (a, b, value) => {
+    const x = Math.max(0, Math.min(1, (value - a) / (b - a)));
+    return smooth01(x);
+  };
+  const easeSlowAccelFastDecel = (value) => {
+    const x = Math.max(0, Math.min(1, value));
+    if (x < .65) return .65 * smooth01(x / .65);
+    const u = (x - .65) / .35;
+    return .65 + .35 * (1 - Math.pow(1 - u, 3));
+  };
+  const softRidge = (waveValue, width) => {
+    const x = (waveValue - (1 - width)) / Math.max(.05, width);
+    return smooth01(x);
+  };
+  const fract = (value) => value - Math.floor(value);
+  const night = { r: 3, g: 8, b: 22 };
+  const horizon = { r: 7, g: 20, b: 42 };
+  const anchor = state?.usingWhiteTemperature
+    ? kelvinToApproxRgb(state?.kelvin)
+    : hexToRgb(state?.hex || '#ffb26d');
+  const spread = .09 + intensity * .54;
+  const auroraGreen = blendRgb(anchor, { r: 64, g: 230, b: 145 }, spread);
+  const cyan = blendRgb(anchor, { r: 70, g: 210, b: 245 }, Math.min(.82, spread + .06));
+  const teal = blendRgb(anchor, { r: 75, g: 245, b: 210 }, Math.min(.80, spread + .04));
+  const violet = blendRgb(anchor, { r: 125, g: 105, b: 245 }, Math.min(.86, spread + rawIntensity * .13));
+  const pale = blendRgb(anchor, { r: 185, g: 250, b: 225 }, .07 + intensity * .25);
+  const paletteColors = state?.paletteEnabled ? activePreviewPaletteColors(state) : [];
+  const brightness = state?.effectiveBrightness ?? state?.masterBrightness ?? 180;
+  const t = timeMs / 1000;
   return makePreviewPixels((index, position) => {
-    const veilA = (Math.sin(position * Math.PI * 2.4 + timeMs / 18000) + 1) / 2;
-    const veilB = (Math.sin(position * Math.PI * 5.4 - timeMs / 26000) + 1) / 2;
-    const sampled = samplePaletteColor(activePreviewPaletteColors(state), position + timeMs / 48000);
-    const ribbon = sampled || blendRgb(green, violet, veilB * .55);
-    const fold = Math.min(1, veilA * veilA * .68 + veilB * .16);
-    return scaleRgb(blendRgb(night, ribbon, fold), (state?.effectiveBrightness ?? 180) * (.16 + fold * .36));
+    const breath = (Math.sin(position * Math.PI * .84 + t * (.020 + intensity * .010)) + 1) / 2;
+    let color = blendRgb(night, horizon, .09 + breath * .17);
+    color = blendRgb(color, anchor, .02 + intensity * .04);
+    let level = .050 + breath * (.018 + intensity * .030);
+    for (let layer = 0; layer < auroraWaveLayerCount; layer += 1) {
+      const seed = previewHashUnit(layer * 71 + 37);
+      const seedPhase = seed * Math.PI * 2 + layer * 1.21;
+      const lifeRate = .0010 + seed * .0007 + intensity * .0008;
+      const lifePosition = t * lifeRate + seed * .73 + layer * .19;
+      const cycle = fract(lifePosition);
+      const generation = Math.floor(lifePosition);
+      const generationSeed = previewHashUnit(seed * 255 + generation * 29 + layer * 11);
+      const fadeIn = smooth(0, .24, cycle);
+      const fadeOut = 1 - smooth(.68, 1, cycle);
+      const lifeEnvelope = fadeIn * fadeOut;
+      if (lifeEnvelope <= .003) continue;
+      const motionCycle = .5 + .5 * Math.sin(t * (.007 + seed * .011 + intensity * .006) + seedPhase + generationSeed);
+      const shapedMotion = easeSlowAccelFastDecel(motionCycle);
+      let phaseShift = ((layer % 2) ? -1 : 1) * (shapedMotion * 2 - 1) * (.80 + intensity * 1.25);
+      phaseShift += Math.sin(t * (.004 + generationSeed * .004) + seedPhase * 1.83) * (.20 + intensity * .28);
+      const spatialFrequency = Math.PI * 2 * (.95 + layer * .33 + generationSeed * .42 + intensity * .32);
+      const warpFrequency = Math.PI * 2 * (.70 + seed * .64 + layer * .18);
+      const foldFrequency = Math.PI * 2 * (2.2 + generationSeed * 1.7 + layer * .48);
+      const warp = (.07 + intensity * .07) * Math.sin(position * warpFrequency + t * (.012 + seed * .018 + intensity * .010) + seedPhase)
+        + (.025 + intensity * .035) * Math.sin(position * foldFrequency * .43 - t * (.007 + seed * .011) + seedPhase * 1.47);
+      const fieldPhase = position * spatialFrequency + phaseShift + warp;
+      const waveValue = Math.sin(fieldPhase);
+      const ridge = softRidge(waveValue, .92 - intensity * .34);
+      const folds = .72 + (.06 + intensity * .24) * Math.sin(position * foldFrequency + t * (.018 + generationSeed * .032 + intensity * .022) + seedPhase);
+      const fineCurtain = .90 + .10 * Math.sin(position * foldFrequency * 2.7 - t * (.011 + generationSeed * .020) + seedPhase * 2.11);
+      const waveContribution = Math.max(0, Math.min(1, ridge * folds * fineCurtain * lifeEnvelope * (.40 + intensity * .52)));
+      const sampled = samplePaletteColor(paletteColors, fract(position * .46 + seed + generationSeed * .31 + layer * .17 + phaseShift * .026));
+      let waveColor = sampled;
+      if (!waveColor && layer % 5 === 0) waveColor = blendRgb(auroraGreen, cyan, .19 + generationSeed * .28);
+      if (!waveColor && layer % 5 === 1) waveColor = blendRgb(cyan, teal, .18 + seed * .27);
+      if (!waveColor && layer % 5 === 2) waveColor = blendRgb(teal, violet, .13 + rawIntensity * .28);
+      if (!waveColor && layer % 5 === 3) waveColor = blendRgb(auroraGreen, pale, .14 + generationSeed * .25);
+      if (!waveColor) waveColor = blendRgb(anchor, violet, .15 + rawIntensity * .34);
+      color = blendRgb(color, waveColor, waveContribution * (.12 + intensity * .34));
+      level += waveContribution * (.11 + intensity * .24);
+    }
+    const shimmer = (Math.sin(position * Math.PI * 2 * (4.4 + intensity * 1.8) + t * (.012 + intensity * .018)) + 1) / 2;
+    level += shimmer * intensity * .018;
+    color = blendRgb(color, pale, shimmer * intensity * .024);
+    return scaleRgb(color, brightness * Math.min(.62, level));
   });
 }
 
+function previewHashUnit(seed) {
+  const raw = Math.sin(seed * 12.9898) * 43758.5453;
+  return raw - Math.floor(raw);
+}
+
 function renderPreviewCandleHall(state, timeMs) {
+  const strength = previewStrength01(state);
   const shadow = { r: 42, g: 16, b: 8 };
   const flame = kelvinToApproxRgb(2350);
+  const amount = Math.max(0, Math.min(20, Number(state?.candleHallFlickerAmount ?? 3))) / 20;
+  const candleTraits = Array.from({ length: 6 }, (_, candle) => {
+    const seed = candle * 53 + 17;
+    const brightnessVariance = .26 + amount * .30;
+    return {
+      brightnessScale: 1 - brightnessVariance * .5 + previewHashUnit(seed + 19) * brightnessVariance,
+      wobble: .006 + amount * .014 + previewHashUnit(seed + 41) * .012,
+      width: .046 + previewHashUnit(seed + 149) * .036,
+      primaryPeriod: 9000 + previewHashUnit(seed + 113) * 5900,
+      secondaryPeriod: 1800 + previewHashUnit(seed + 131) * 4300,
+      microPeriod: 90 + previewHashUnit(seed + 167) * 160,
+      phase: previewHashUnit(seed + 79) * Math.PI * 2,
+      secondaryPhase: previewHashUnit(seed + 97) * Math.PI * 2,
+      warmth: .17 + previewHashUnit(seed + 181) * .36
+    };
+  });
   return makePreviewPixels((index, position) => {
     let level = .08;
     let color = shadow;
-    for (let candle = 0; candle < 6; candle++) {
-      const center = candle / 5 + Math.sin(timeMs / (28000 + candle * 3500) + candle * 1.7) * .018;
-      const falloff = Math.max(0, 1 - Math.abs(position - center) / .065);
-      const pulse = .72 + .24 * ((Math.sin(timeMs / (6500 + candle * 600) + candle) + 1) / 2);
-      level += falloff * falloff * pulse * .58;
+    for (let candle = 0; candle < candleTraits.length; candle++) {
+      const trait = candleTraits[candle];
+      let center = candle / Math.max(1, candleTraits.length - 1);
+      center += Math.sin(timeMs / (28000 / (trait.wobble * 70)) + trait.phase) * trait.wobble;
+      center += Math.sin(timeMs / (12000 / (trait.wobble * 95)) + trait.secondaryPhase) * trait.wobble * .28 * amount;
+      const falloff = Math.max(0, 1 - Math.abs(position - center) / trait.width);
+      const primary = (Math.sin(timeMs / trait.primaryPeriod + trait.phase) + 1) / 2;
+      const secondary = (Math.sin(timeMs / trait.secondaryPeriod + trait.secondaryPhase) + 1) / 2;
+      const microFlicker = previewHashUnit(candle * 91 + Math.floor(timeMs / trait.microPeriod));
+      const pulse = (.86 - amount * .34) + (.08 + amount * .92) * (primary * .55 + secondary * .30 + microFlicker * .15);
+      level += falloff * falloff * pulse * trait.brightnessScale * .58;
       const sampled = samplePaletteColor(activePreviewPaletteColors(state), candle / 5) || flame;
-      color = blendRgb(color, blendRgb(sampled, flame, .28), falloff * .55);
+      color = blendRgb(color, blendRgb(sampled, flame, trait.warmth), falloff * (.48 + amount * .18));
     }
-    return scaleRgb(color, (state?.effectiveBrightness ?? 180) * Math.min(.72, level));
+    return scaleRgb(color, (state?.effectiveBrightness ?? 180) * Math.min(.92, level));
   });
 }
 
 function renderPreviewSlowPrism(state, timeMs) {
+  const strength = previewStrength01(state);
   const anchor = previewBaseColor(state);
   return makePreviewPixels((index, position) => {
     const shifted = (position + timeMs / 210000) % 1;
@@ -1671,6 +1821,7 @@ function renderPreviewSlowPrism(state, timeMs) {
 }
 
 function renderPreviewGardenShade(state, timeMs) {
+  const strength = previewStrength01(state);
   const sun = kelvinToApproxRgb(3900);
   const leaf = { r: 96, g: 126, b: 62 };
   const gold = { r: 224, g: 188, b: 92 };
@@ -1686,6 +1837,7 @@ function renderPreviewGardenShade(state, timeMs) {
 }
 
 function renderPreviewSnowfallHush(state, timeMs) {
+  const strength = previewStrength01(state);
   const base = samplePaletteColor(activePreviewPaletteColors(state), 0) || { r: 70, g: 96, b: 132 };
   const snow = kelvinToApproxRgb(6200);
   return makePreviewPixels((index, position) => {
@@ -1704,6 +1856,7 @@ function renderPreviewSnowfallHush(state, timeMs) {
 }
 
 function renderPreviewObservatoryGlow(state, timeMs) {
+  const strength = previewStrength01(state);
   const night = { r: 4, g: 12, b: 34 };
   const moon = kelvinToApproxRgb(5600);
   const moonCenter = (timeMs % 420000) / 420000;
@@ -1724,6 +1877,7 @@ function renderPreviewObservatoryGlow(state, timeMs) {
 }
 
 function renderPreviewRainyWindow(state, timeMs) {
+  const strength = previewStrength01(state);
   const pane = samplePaletteColor(activePreviewPaletteColors(state), 0) || { r: 31, g: 58, b: 90 };
   const dropColor = { r: 160, g: 206, b: 226 };
   return makePreviewPixels((index, position) => {
@@ -1742,6 +1896,7 @@ function renderPreviewRainyWindow(state, timeMs) {
 }
 
 function renderPreviewCampfireBlanket(state, timeMs) {
+  const strength = previewStrength01(state);
   const ember = { r: 178, g: 58, b: 18 };
   const blanket = kelvinToApproxRgb(2450);
   return makePreviewPixels((index, position) => {
@@ -1755,6 +1910,7 @@ function renderPreviewCampfireBlanket(state, timeMs) {
 }
 
 function renderPreviewNorthernWhisper(state, timeMs) {
+  const strength = previewStrength01(state);
   const night = { r: 5, g: 12, b: 32 };
   const green = { r: 64, g: 210, b: 145 };
   const blue = { r: 78, g: 128, b: 224 };
@@ -1771,6 +1927,7 @@ function renderPreviewNorthernWhisper(state, timeMs) {
 }
 
 function renderPreviewStormOutside(state, timeMs) {
+  const strength = previewStrength01(state);
   const base = samplePaletteColor(activePreviewPaletteColors(state), 0) || { r: 16, g: 32, b: 51 };
   const cloud = { r: 72, g: 96, b: 124 };
   const lightning = kelvinToApproxRgb(7200);
@@ -1792,6 +1949,8 @@ function renderPreviewFallback(state, timeMs) {
 
 function renderPreviewPixels(state, timeMs) {
   const mode = state?.mode || 'solid';
+  const strength = previewStrength01(state);
+  timeMs = timeMs * (.35 + strength * 1.35);
   if (mode === 'solid') return renderPreviewSolid(state, timeMs);
   if (mode === 'strobe') return renderPreviewStrobe(state, timeMs);
   if (mode === 'flash') return renderPreviewFlash(state, timeMs);
@@ -1924,6 +2083,74 @@ function sendSoon(params) {
 function updateBrightnessReadout(raw, percent) {
   $('masterBrightnessValue').textContent = raw;
   $('masterBrightnessPercent').textContent = `${percent}%`;
+}
+
+function animationStrengthBand(value) {
+  if (value <= 50) return 'Subtle';
+  if (value <= 110) return 'Subtle';
+  if (value <= 180) return 'Balanced';
+  if (value <= 230) return 'Expressive';
+  return 'Maximum expression';
+}
+
+function updateAnimationStrengthReadout(value) {
+  const raw = Math.max(0, Math.min(255, Number(value) || 0));
+  const percent = Math.round(raw * 100 / 255);
+  $('animationStrengthValue').textContent = `${animationStrengthBand(raw)} - ${raw} / 255 - ${percent}%`;
+}
+
+async function sendAnimationStrength(value) {
+  if (!canMutateFromUi('animation strength')) {
+    return false;
+  }
+  const raw = Math.max(0, Math.min(255, Number(value) || 0));
+  showGlobalStatus('Saving Animation Strength...', 'pending');
+  const result = await apiFetchJson(`/api/animation?${qs({ strength: raw })}`, {
+    label: 'Animation Strength update',
+    timeoutMs: 4500,
+    retries: 1
+  });
+  if (!result.ok) {
+    showGlobalStatus(result.error || 'Animation Strength update failed.', 'error');
+    return false;
+  }
+  const payload = result.payload || {};
+  const nextStrength = Number(payload.animationStrength ?? raw);
+  if (lastState) {
+    lastState = {
+      ...lastState,
+      animationStrength: nextStrength,
+      animationStrengthPercent: Math.round(nextStrength * 100 / 255),
+      animationIntensity: nextStrength,
+      animationIntensityPercent: Math.round(nextStrength * 100 / 255)
+    };
+    previewState = lastState;
+    updatePreviewLabels(lastState);
+  }
+  showGlobalStatus('Animation Strength saved', 'success');
+  return true;
+}
+
+function sendAnimationStrengthSoon(value) {
+  if (!canMutateFromUi('animation strength')) {
+    return;
+  }
+  clearTimeout(animationStrengthDebounceTimer);
+  const raw = Math.max(0, Math.min(255, Number(value) || 0));
+  if (lastState) {
+    lastState = {
+      ...lastState,
+      animationStrength: raw,
+      animationStrengthPercent: Math.round(raw * 100 / 255),
+      animationIntensity: raw,
+      animationIntensityPercent: Math.round(raw * 100 / 255)
+    };
+    previewState = lastState;
+  }
+  showGlobalStatus('Saving Animation Strength...', 'pending');
+  animationStrengthDebounceTimer = setTimeout(() => {
+    sendAnimationStrength(raw).catch(console.error);
+  }, 180);
 }
 
 function findModeMeta(id) {
@@ -2369,6 +2596,9 @@ function applyState(state) {
     $('bootBehavior').value = state.bootBehavior || 'restore';
     $('masterBrightness').value = state.masterBrightness;
     updateBrightnessReadout(state.masterBrightness, state.masterBrightnessPercent);
+    const animationStrength = Number(state.animationStrength ?? state.animationIntensity ?? 128);
+    $('animationStrength').value = String(animationStrength);
+    updateAnimationStrengthReadout(animationStrength);
     $('gammaEnabled').checked = !!state.gammaEnabled;
     $('redGain').value = state.redGain;
     $('greenGain').value = state.greenGain;
@@ -2385,6 +2615,9 @@ function applyState(state) {
     $('slowPulseCount').value = String(state.slowPulseCount);
     $('slowPulseMax').value = String(state.slowPulseMax);
     $('rainbowPeriod').value = String(state.rainbowPeriod);
+    const candleFlickerAmount = Number(state.candleHallFlickerAmount ?? 3);
+    $('candleHallFlickerAmount').value = String(candleFlickerAmount);
+    $('candleHallFlickerAmountValue').textContent = `${candleFlickerAmount} / 20`;
     $('bedtimeMinutes').value = String(state.bedtimeFadeDefaultMinutes || 30);
     $('bedtimeTarget').value = state.bedtimeFadeDefaultTarget || 'warmDim';
     renderCurrentSummary(state);
@@ -2942,6 +3175,11 @@ $('masterBrightness').addEventListener('input', (event) => {
   sendSoon({ masterBrightness: raw });
 });
 
+$('animationStrength').addEventListener('input', (event) => {
+  updateAnimationStrengthReadout(event.target.value);
+  sendAnimationStrengthSoon(event.target.value);
+});
+
 $('gammaEnabled').addEventListener('change', (event) => {
   send({ gammaEnabled: event.target.checked ? 1 : 0 }).catch(console.error);
 });
@@ -3215,6 +3453,11 @@ $('bootBehavior').addEventListener('change', (event) => {
   'rainbowPeriod'
 ].forEach((id) => {
   $(id).addEventListener('change', () => send({ [id]: $(id).value }).catch(console.error));
+});
+
+$('candleHallFlickerAmount').addEventListener('input', (event) => {
+  $('candleHallFlickerAmountValue').textContent = `${event.target.value} / 20`;
+  sendSoon({ candleHallFlickerAmount: event.target.value });
 });
 
 document.addEventListener('click', (event) => {

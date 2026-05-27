@@ -620,3 +620,104 @@ Verification status:
 - resource report: RAM 55,628 / 80,192 bytes (69%); IRAM 61,383 / 65,536 bytes (93%); flash 567,000 / 1,048,576 bytes (54%).
 - Runtime free heap, Free heap after /api/schedule, LittleFS usage, OTA behavior, web responsiveness, animation responsiveness, and physical LED behavior: not measured.
 - The firmware compiled successfully, but was not physically tested on LEDs.
+
+## Candle Hall Flicker Control
+
+Main additions:
+
+- Added a persistent `candleHallFlickerAmount` setting with a 0-20 range and a default of `3`.
+- Added a Candle Hall mode control in the main Web UI and browser preview.
+- Exposed the setting through `/api/state` and `/set?candleHallFlickerAmount=...`.
+- Included the setting in saved settings and scene capture/load JSON so scenes can preserve the preferred Candle Hall intensity.
+- Preserved the existing Candle Hall renderer shape, palette behavior, warm flame blending, and gentle default look while allowing a stronger flicker ceiling.
+- Added per-candle deterministic brightness, width, drift, pulse timing, micro-flicker, and warmth variation so the clusters no longer animate as matched copies.
+
+Verification status:
+
+- Focused Candle Hall contract test: passed.
+- Worktree firmware compile for `esp8266:esp8266:d1_mini`: passed.
+- Arduino sketch folder compile for `esp8266:esp8266:d1_mini`: passed.
+- `node --check` on extracted Web UI script: passed.
+- `python -m unittest discover -s tests -v`: passed, 139 tests.
+- OTA firmware upload: passed with direct `espota.py` to `192.168.1.201` after pinning host IP `192.168.1.43`.
+- Compile resources after per-candle variation: RAM 60,924 / 80,192 bytes (75%); IRAM 61,383 / 65,536 bytes (93%); flash 609,560 / 1,048,576 bytes (58%).
+- Live API verification: `/api/state` reported `candleHallFlickerAmount: 20` and `settingsSaveStatus: saved`.
+- Live resource snapshot after OTA: diagnostics free heap 5,664 bytes, max block 5,040 bytes, fragmentation 11%, min heap since boot 4,616 bytes.
+- OTA pages after upload: `/ota` HTTP 200 and authenticated `/update` HTTP 200.
+- Physical LED visual behavior: not independently observed by Codex.
+
+## Quiet Northern Lights Intensity Pass
+
+Main additions:
+
+- Added a persistent shared `animationIntensity` setting with a `0-255` range and default `150`.
+- Exposed Animation Intensity through `/api/state`, `/api/intensity?value=...`, legacy `/set?animationIntensity=...`, saved settings, and the main Web UI.
+- Included Animation Intensity in scene capture/load JSON so scenes can preserve animation behavior.
+- Reworked `Quiet Northern Lights` into broad soft aurora ribbons with reversible drift, dissolve envelopes, Gaussian falloff, internal folds, shimmer, active-color anchoring, and palette support.
+- Updated the browser preview for `quietNorthernLights` to read `state.animationIntensity` and approximate the firmware ribbon model.
+- Preserved master brightness, Night Guard, gamma correction, RGB calibration, transitions, existing routes, OTA/browser updater routes, and the central frame buffer/output pipeline.
+
+Verification status:
+
+- Focused Animation Intensity contract test: passed.
+- Worktree firmware compile for `esp8266:esp8266:d1_mini`: passed.
+- Arduino sketch folder compile for `esp8266:esp8266:d1_mini`: passed.
+- `node --check` on extracted Web UI script: passed.
+- `python -m unittest discover -s tests -v`: passed, 142 tests.
+- `git diff --check`: passed.
+- Latest local compile resources: RAM globals/statics 61,128 / 80,192 bytes (76%); IRAM 61,383 / 65,536 bytes (93%); Flash/IROM 616,176 / 1,048,576 bytes (58%).
+- OTA firmware upload for this specific pass: not performed.
+- Runtime heap for this specific pass: not measured.
+- Physical LED visual behavior: not independently observed by Codex.
+
+## Quiet Northern Lights Smooth Curtain Pass
+
+Main additions:
+
+- Rewrote the existing `Quiet Northern Lights` renderer as overlapping broad aurora curtain-waves instead of isolated Gaussian ribbon blobs.
+- Added cheap `softBand(...)` smoothstep falloff and removed `expf()` from the mode renderer.
+- Added deterministic fade-in/fade-out life envelopes so wave cycle resets happen while faded down.
+- Preserved slow reversible glide, internal fold texture, active-color anchoring, palette sampling, Animation Intensity behavior, and central frame-buffer output.
+- Updated the browser preview to approximate the same curtain-wave model.
+- Kept `MODE_QUIET_NORTHERN_LIGHTS` eligible for the existing temporal smoothing path.
+
+Verification status:
+
+- Focused smooth curtain contract test: passed.
+- Worktree firmware compile for `esp8266:esp8266:d1_mini`: passed.
+- Arduino sketch folder compile for `esp8266:esp8266:d1_mini`: passed.
+- `node --check` on extracted Web UI script: passed.
+- `python -m unittest discover -s tests -v`: passed, 143 tests.
+- `git diff --check`: passed.
+- Latest local compile resources: RAM globals/statics 61,128 / 80,192 bytes (76%); IRAM 61,383 / 65,536 bytes (93%); Flash/IROM 617,872 / 1,048,576 bytes (58%).
+- OTA firmware upload: passed with direct `espota.py` to `192.168.1.201`.
+- Live API verification after OTA: `/api/state` reported `mode=quietNorthernLights`, `masterBrightness=255`, `animationIntensity=255`, and `settingsSaveStatus=saved`.
+- Live resource snapshot after OTA: diagnostics free heap 4,816 bytes, max block 3,960 bytes, fragmentation 18%, min heap since boot 3,200 bytes.
+- Runtime frame timing for this specific pass: not measured.
+- Physical LED visual behavior: not independently observed by Codex.
+
+## Quiet Northern Lights True Aurora Wavefield Pass
+
+Main additions:
+
+- Reworked the existing `Quiet Northern Lights` renderer as overlapping full-strip aurora wavefield layers instead of local blob/window layers.
+- Removed center/distance/falloff logic from the mode renderer.
+- Added phase/ridge/fold/fine-curtain layer math to create multiple overlapping aurora wavefronts.
+- Added slow-acceleration/faster-deceleration phase shaping with `easeSlowAccelFastDecel(...)`.
+- Preserved fade-in/fade-out layer life envelopes, active-color anchoring, palette sampling, Animation Intensity behavior, temporal smoothing eligibility, and central frame-buffer output.
+- Updated the browser preview to approximate the same wavefield model.
+
+Verification status:
+
+- Focused true aurora wavefield contract test: passed.
+- Worktree firmware compile for `esp8266:esp8266:d1_mini`: passed.
+- Arduino sketch folder compile for `esp8266:esp8266:d1_mini`: passed.
+- Web UI JavaScript syntax check with bundled Node.js: passed.
+- `python -m unittest discover -s tests -v`: passed, 144 tests.
+- Latest local compile resources: RAM globals/statics 61,128 / 80,192 bytes (76%); IRAM 61,383 / 65,536 bytes (93%); Flash/IROM 620,832 / 1,048,576 bytes (59%).
+- OTA firmware upload: attempted but failed mid-transfer with direct `espota.py`, throttled `espota.py`, and browser `/update`.
+- USB fallback: not performed because no local serial port was detected and `COM5` was unavailable.
+- Live API state after failed OTA attempts was restored to `mode=quietNorthernLights`, `masterBrightness=255`, `animationIntensity=255`, and `settingsSaveStatus=saved`.
+- Live board still reports `sketchSizeBytes=677936`, so the true wavefield build is not installed on the D1 mini yet.
+- Runtime frame timing for this specific pass: not measured.
+- Physical LED visual behavior: not independently observed by Codex.

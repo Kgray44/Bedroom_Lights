@@ -36,9 +36,15 @@ const char* OTA_PASS = BEDROOM_OTA_PASS;
 const char* FALLBACK_AP_SSID = "BedroomLED-Setup";
 const char* FALLBACK_AP_PASS = BEDROOM_FALLBACK_AP_PASS;
 
-const uint16_t LED_COUNT = 140;        // Updated for the measured bedroom strip length.
-const uint8_t LED_PIN = D3;            // D3 on a D1 mini is GPIO0.
-const uint8_t MASTER_BRIGHTNESS = 100; // Conservative local hardware-test default. Raise only if the supply can handle it.
+#include "HardwareProfile.h"
+
+constexpr uint16_t LED_COUNT = calculateConfiguredLedCount(
+  STRIP_LENGTH_MM,
+  LED_DENSITY_PER_METER,
+  LED_COUNT_OVERRIDE
+);
+constexpr uint8_t LED_PIN = LED_DATA_PIN;
+constexpr uint8_t MASTER_BRIGHTNESS = DEFAULT_MASTER_BRIGHTNESS;
 
 const char* SETTINGS_PATH = "/settings.json";
 const char* SCENES_PATH = "/scenes.json";

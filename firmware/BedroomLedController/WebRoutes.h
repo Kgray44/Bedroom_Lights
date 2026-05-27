@@ -472,6 +472,18 @@ bool setBootBehaviorValue(const String& bootBehavior) {
   return true;
 }
 
+bool setAnimationStrength(uint8_t value) {
+  if (settings.animationStrength == value) {
+    return false;
+  }
+  settings.animationStrength = value;
+  clearLoadedSceneTracking();
+  resetTemporalSmoothing();
+  ledsDirty = true;
+  markSettingsDirty();
+  return true;
+}
+
 bool setFloatSetting(float& target, float value, float minValue, float maxValue) {
   float clampedValue = constrain(value, minValue, maxValue);
   if (fabsf(target - clampedValue) < 0.001f) {
@@ -495,6 +507,10 @@ bool setByteSetting(uint8_t& target, int value, int minValue, int maxValue, bool
   return true;
 }
 
+uint8_t animationStrengthPercent() {
+  return static_cast<uint8_t>((static_cast<uint16_t>(settings.animationStrength) * 100U + 127U) / 255U);
+}
+
 String buildStateJson() {
   String ip = WiFi.status() == WL_CONNECTED
     ? WiFi.localIP().toString()
@@ -505,8 +521,44 @@ String buildStateJson() {
   String modeCategory = metadata != nullptr ? String(metadata->category) : String("Unknown");
 
   String json;
-  json.reserve(2200);
+  json.reserve(2620);
   json += R"json({"ok":true)json";
+  json += R"json(,"boardFamily":")json";
+  json += boardFamilyName();
+  json += R"json(","boardProfile":")json";
+  json += boardProfileName();
+  json += R"json(","compileFqbn":")json";
+  json += ESP32S3_N16R8_FQBN;
+  json += R"json(","compileOptions":")json";
+  json += ESP32S3_N16R8_OPTIONS;
+  json += R"json(","psramPresent":)json";
+  json += boolJson(platformHasPsram());
+  json += R"json(,"psramSizeBytes":)json";
+  json += platformPsramSizeBytes();
+  json += R"json(","stripProfile":")json";
+  json += escapeJson(ACTIVE_HARDWARE_PROFILE.profileName);
+  json += R"json(","stripType":")json";
+  json += escapeJson(ACTIVE_HARDWARE_PROFILE.stripType);
+  json += R"json(","stripLengthMm":)json";
+  json += ACTIVE_HARDWARE_PROFILE.stripLengthMm;
+  json += R"json(,"ledDensityPerMeter":)json";
+  json += String(ACTIVE_HARDWARE_PROFILE.ledDensityPerMeter, 2);
+  json += R"json(,"configuredLedCount":)json";
+  json += getConfiguredLedCount();
+  json += R"json(,"mmPerPixel":)json";
+  json += String(getMmPerPixel(), 3);
+  json += R"json(,"targetFrameIntervalMs":)json";
+  json += ACTIVE_HARDWARE_PROFILE.targetFrameIntervalMs;
+  json += R"json(,"dataPin":)json";
+  json += LED_PIN;
+  json += R"json(,"ledPin":")json";
+  json += escapeJson(ledPinLabel());
+  json += R"json(")json";
+  json += R"json(,"powerEstimateMilliampsPerPixel":)json";
+  json += String(ACTIVE_HARDWARE_PROFILE.milliampsPerPixelFullWhite, 2);
+  json += R"json(,"powerEstimateSource":")json";
+  json += escapeJson(ACTIVE_HARDWARE_PROFILE.estimateSource);
+  json += R"json(")json";
   json += R"json(,"hostname":")json";
   json += escapeJson(DEVICE_HOSTNAME);
   json += R"json(","ip":")json";
@@ -671,6 +723,16 @@ String buildStateJson() {
   json += settings.slowPulseMaxSec;
   json += R"json(,"rainbowPeriod":)json";
   json += settings.rainbowPeriodSec;
+  json += R"json(,"candleHallFlickerAmount":)json";
+  json += settings.candleHallFlickerAmount;
+  json += R"json(,"animationStrength":)json";
+  json += settings.animationStrength;
+  json += R"json(,"animationStrengthPercent":)json";
+  json += animationStrengthPercent();
+  json += R"json(,"animationIntensity":)json";
+  json += settings.animationStrength;
+  json += R"json(,"animationIntensityPercent":)json";
+  json += animationStrengthPercent();
   json += R"json(,"settingsLoadStatus":")json";
   json += escapeJson(settingsLoadStatus);
   json += R"json(","settingsSaveStatus":")json";
@@ -713,8 +775,16 @@ void sendJsonError(int statusCode, const String& error) {
   server.send(statusCode, "application/json", json);
 }
 
-void setupWifi() {
+void configureWifiHostname() {
+#if defined(ESP8266)
   WiFi.hostname(DEVICE_HOSTNAME);
+#elif defined(ESP32)
+  WiFi.setHostname(DEVICE_HOSTNAME);
+#endif
+}
+
+void setupWifi() {
+  configureWifiHostname();
 
   const bool hasCredentials =
     String(WIFI_SSID) != "YOUR_WIFI_NAME" &&
@@ -765,6 +835,8 @@ void setupRoutes() {
   server.on("/api/palettes/reset-builtins", HTTP_GET, handleApiPalettesResetBuiltins);
   server.on("/api/surprise", HTTP_GET, handleApiSurprise);
   server.on("/api/surprise/options", HTTP_GET, handleApiSurpriseOptions);
+  server.on("/api/animation", HTTP_GET, handleApiAnimation);
+  server.on("/api/intensity", HTTP_GET, handleApiIntensity);
   server.on("/api/brightness", HTTP_GET, handleApiBrightness);
   server.on("/api/color", HTTP_GET, handleApiColor);
   server.on("/api/temperature", HTTP_GET, handleApiTemperature);
@@ -814,7 +886,9 @@ void setupRoutes() {
   server.on("/state", HTTP_GET, handleState);
   server.onNotFound(handleNotFound);
 
+#if defined(ESP8266) || defined(ESP32)
   httpUpdater.setup(&server, "/update", OTA_USER, OTA_PASS);
+#endif
 }
 
 void handleRoot() {
@@ -1069,6 +1143,25 @@ void handleSet() {
     }
     setByteSetting(settings.rainbowPeriodSec, requestedPeriod, 1, 30, false);
   }
+  if (server.hasArg("candleHallFlickerAmount")) {
+    int requestedAmount;
+    if (!parseIntArg("candleHallFlickerAmount", requestedAmount)) {
+      sendJsonError(400, "Invalid Candle Hall flicker amount");
+      return;
+    }
+    setByteSetting(settings.candleHallFlickerAmount, requestedAmount, 0, 20, false);
+  }
+  if (server.hasArg("animationStrength") || server.hasArg("animationIntensity")) {
+    String rawStrength = server.hasArg("animationStrength")
+      ? server.arg("animationStrength")
+      : server.arg("animationIntensity");
+    int requestedStrength;
+    if (!parseRequestInt(rawStrength, requestedStrength)) {
+      sendJsonError(400, "Invalid animation strength value");
+      return;
+    }
+    setAnimationStrength(static_cast<uint8_t>(constrain(requestedStrength, 0, 255)));
+  }
 
   recordMutation("/set", "set", beforeBrightness, beforeMode);
   handleState();
@@ -1082,6 +1175,91 @@ void handleApiState() {
   uint32_t heapBefore = beginEndpointHeapMetric("/api/state");
   String json = buildStateJson();
   finishEndpointHeapMetric("/api/state", heapBefore, json.length());
+  server.send(200, "application/json", json);
+}
+
+void sendAnimationStrengthPayload(const char* message, bool includeMessage) {
+  String json;
+  json.reserve(180);
+  json += F("{\"ok\":true");
+  if (includeMessage) {
+    json += F(",\"message\":\"");
+    json += message;
+    json += '"';
+  }
+  json += R"json(,"animationStrength":)json";
+  json += settings.animationStrength;
+  json += F(",\"animationStrengthPercent\":");
+  json += animationStrengthPercent();
+  json += F(",\"animationIntensity\":");
+  json += settings.animationStrength;
+  json += F(",\"animationIntensityPercent\":");
+  json += animationStrengthPercent();
+  json += F("}");
+  server.send(200, "application/json", json);
+}
+
+void handleApiAnimation() {
+  if (!server.hasArg("strength") && !server.hasArg("value")) {
+    sendAnimationStrengthPayload("Animation strength state", false);
+    return;
+  }
+
+  String rawStrength = server.hasArg("strength")
+    ? server.arg("strength")
+    : server.arg("value");
+  int requestedStrength;
+  if (!parseRequestInt(rawStrength, requestedStrength)) {
+    sendJsonError(400, "Invalid animation strength value");
+    return;
+  }
+
+  uint8_t beforeBrightness = settings.masterBrightness;
+  Mode beforeMode = settings.mode;
+  setAnimationStrength(static_cast<uint8_t>(constrain(requestedStrength, 0, 255)));
+  recordMutation("/api/animation", "animationStrength", beforeBrightness, beforeMode);
+  sendAnimationStrengthPayload("Animation strength updated", true);
+}
+
+void handleApiIntensity() {
+  if (!server.hasArg("value")) {
+    String json;
+    json.reserve(150);
+    json += R"json({"ok":true,"animationStrength":)json";
+    json += settings.animationStrength;
+    json += F(",\"animationStrengthPercent\":");
+    json += animationStrengthPercent();
+    json += F(",\"animationIntensity\":");
+    json += settings.animationStrength;
+    json += F(",\"animationIntensityPercent\":");
+    json += animationStrengthPercent();
+    json += F("}");
+    server.send(200, "application/json", json);
+    return;
+  }
+
+  int requestedStrength;
+  if (!parseIntArg("value", requestedStrength)) {
+    sendJsonError(400, "Invalid animation strength value");
+    return;
+  }
+
+  uint8_t beforeBrightness = settings.masterBrightness;
+  Mode beforeMode = settings.mode;
+  setAnimationStrength(static_cast<uint8_t>(constrain(requestedStrength, 0, 255)));
+  recordMutation("/api/intensity", "animationStrength", beforeBrightness, beforeMode);
+
+  String json;
+  json.reserve(170);
+  json += R"json({"ok":true,"message":"Animation strength updated","animationStrength":)json";
+  json += settings.animationStrength;
+  json += F(",\"animationStrengthPercent\":");
+  json += animationStrengthPercent();
+  json += F(",\"animationIntensity\":");
+  json += settings.animationStrength;
+  json += F(",\"animationIntensityPercent\":");
+  json += animationStrengthPercent();
+  json += F("}");
   server.send(200, "application/json", json);
 }
 

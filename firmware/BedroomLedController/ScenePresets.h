@@ -103,6 +103,8 @@ ScenePreset captureCurrentScene(const String& id, const String& name, bool built
   scene.slowPulseCount = settings.slowPulseCount;
   scene.slowPulseMaxSec = settings.slowPulseMaxSec;
   scene.rainbowPeriodSec = settings.rainbowPeriodSec;
+  scene.candleHallFlickerAmount = settings.candleHallFlickerAmount;
+  scene.animationStrength = settings.animationStrength;
   scene.builtin = builtin;
   scene.isFavoriteCandidate = false;
   scene.isSleepSafe = false;
@@ -163,6 +165,8 @@ bool addBuiltInScene(
   scene.slowPulseCount = 5;
   scene.slowPulseMaxSec = 20;
   scene.rainbowPeriodSec = 10;
+  scene.candleHallFlickerAmount = 3;
+  scene.animationStrength = 128;
   scene.builtin = true;
   scene.isFavoriteCandidate = isFavoriteCandidate;
   scene.isSleepSafe = isSleepSafe;
@@ -242,7 +246,7 @@ String buildSceneWarningsJson(const ScenePreset& scene) {
 
 String buildSingleSceneJson(const ScenePreset& scene) {
   String json;
-  json.reserve(620);
+  json.reserve(650);
   json += F("{\"id\":\"");
   json += escapeJson(scene.id);
   json += F("\",\"name\":\"");
@@ -279,6 +283,12 @@ String buildSingleSceneJson(const ScenePreset& scene) {
   json += scene.slowPulseMaxSec;
   json += F(",\"rainbowPeriodSec\":");
   json += scene.rainbowPeriodSec;
+  json += F(",\"candleHallFlickerAmount\":");
+  json += scene.candleHallFlickerAmount;
+  json += F(",\"animationStrength\":");
+  json += scene.animationStrength;
+  json += F(",\"animationIntensity\":");
+  json += scene.animationStrength;
   json += F(",\"builtin\":");
   json += boolJson(scene.builtin);
   json += R"json(,"isFavoriteCandidate":)json";
@@ -413,6 +423,8 @@ bool loadSceneObject(const String& objectJson, ScenePreset& scene) {
   scene.slowPulseCount = 5;
   scene.slowPulseMaxSec = 20;
   scene.rainbowPeriodSec = 10;
+  scene.candleHallFlickerAmount = 3;
+  scene.animationStrength = 128;
   scene.builtin = false;
   scene.isFavoriteCandidate = false;
   scene.isSleepSafe = false;
@@ -475,6 +487,14 @@ bool loadSceneObject(const String& objectJson, ScenePreset& scene) {
   }
   if (readJsonInt(objectJson, "rainbowPeriodSec", intValue)) {
     scene.rainbowPeriodSec = constrain(intValue, 1, 30);
+  }
+  if (readJsonInt(objectJson, "candleHallFlickerAmount", intValue)) {
+    scene.candleHallFlickerAmount = constrain(intValue, 0, 20);
+  }
+  if (readJsonInt(objectJson, "animationStrength", intValue)) {
+    scene.animationStrength = constrain(intValue, 0, 255);
+  } else if (readJsonInt(objectJson, "animationIntensity", intValue)) {
+    scene.animationStrength = constrain(intValue, 0, 255);
   }
   if (readJsonBool(objectJson, "builtin", boolValue)) {
     scene.builtin = boolValue;
@@ -625,6 +645,8 @@ bool applyScene(const ScenePreset& scene) {
   setByteSetting(settings.slowPulseCount, scene.slowPulseCount, 1, 15, true);
   setByteSetting(settings.slowPulseMaxSec, scene.slowPulseMaxSec, 1, 60, true);
   setByteSetting(settings.rainbowPeriodSec, scene.rainbowPeriodSec, 1, 30, false);
+  setByteSetting(settings.candleHallFlickerAmount, scene.candleHallFlickerAmount, 0, 20, false);
+  setByteSetting(settings.animationStrength, scene.animationStrength, 0, 255, false);
   applyScenePaletteReference(scene);
   setModeByName(scene.mode);
   markSettingsDirty();

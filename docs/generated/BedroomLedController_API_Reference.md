@@ -7,6 +7,8 @@ All routes are local GET routes served by the ESP8266. Large JSON imports are co
 - `GET /api/state`
 - `GET /state`
 - `GET /api/brightness?value=0..255`
+- `GET /api/animation?strength=0..255`
+- `GET /api/intensity?value=0..255` (compatibility alias for Animation Strength)
 - `GET /api/color?hex=%23RRGGBB`
 - `GET /api/temperature?kelvin=2700..6500`
 - `GET /api/mode?mode=solid`
@@ -74,6 +76,7 @@ All routes are local GET routes served by the ESP8266. Large JSON imports are co
 
 `GET /api/diagnostics` includes runtime resource fields when running on the device:
 
+- `animationStrength`, `animationStrengthPercent`
 - `freeHeap`, `freeHeapNow`
 - `maxFreeBlockSize`
 - `heapFragmentationPercent`

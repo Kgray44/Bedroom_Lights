@@ -1,0 +1,1057 @@
+{
+  "ledCount": 800,
+  "stripLengthMm": 5000,
+  "strengthLevels": [
+    0,
+    64,
+    128,
+    192,
+    255
+  ],
+  "timeSamplesSeconds": [
+    0,
+    2,
+    5,
+    10,
+    20,
+    40
+  ],
+  "modes": {
+    "solid": {
+      "strengthDeltaScore": 0.0,
+      "estimatedMotionScore": 0.0,
+      "strengthResponseProven": true,
+      "motionProvenAt128": true,
+      "strengths": {
+        "0": {
+          "estimatedMotionScore": 0.0,
+          "averageLuma": 112.667
+        },
+        "64": {
+          "estimatedMotionScore": 0.0,
+          "averageLuma": 112.667
+        },
+        "128": {
+          "estimatedMotionScore": 0.0,
+          "averageLuma": 112.667
+        },
+        "192": {
+          "estimatedMotionScore": 0.0,
+          "averageLuma": 112.667
+        },
+        "255": {
+          "estimatedMotionScore": 0.0,
+          "averageLuma": 112.667
+        }
+      }
+    },
+    "strobe": {
+      "strengthDeltaScore": 157.889,
+      "estimatedMotionScore": 47.333,
+      "strengthResponseProven": true,
+      "motionProvenAt128": true,
+      "strengths": {
+        "0": {
+          "estimatedMotionScore": 0.0,
+          "averageLuma": 0.0
+        },
+        "64": {
+          "estimatedMotionScore": 33.6,
+          "averageLuma": 40.333
+        },
+        "128": {
+          "estimatedMotionScore": 47.333,
+          "averageLuma": 88.889
+        },
+        "192": {
+          "estimatedMotionScore": 107.8,
+          "averageLuma": 76.556
+        },
+        "255": {
+          "estimatedMotionScore": 41.467,
+          "averageLuma": 157.889
+        }
+      }
+    },
+    "flash": {
+      "strengthDeltaScore": 61.611,
+      "estimatedMotionScore": 35.6,
+      "strengthResponseProven": true,
+      "motionProvenAt128": true,
+      "strengths": {
+        "0": {
+          "estimatedMotionScore": 29.133,
+          "averageLuma": 43.611
+        },
+        "64": {
+          "estimatedMotionScore": 28.6,
+          "averageLuma": 52.111
+        },
+        "128": {
+          "estimatedMotionScore": 35.6,
+          "averageLuma": 54.833
+        },
+        "192": {
+          "estimatedMotionScore": 21.333,
+          "averageLuma": 62.778
+        },
+        "255": {
+          "estimatedMotionScore": 29.067,
+          "averageLuma": 98.333
+        }
+      }
+    },
+    "chase": {
+      "strengthDeltaScore": 70.318,
+      "estimatedMotionScore": 35.008,
+      "strengthResponseProven": true,
+      "motionProvenAt128": true,
+      "strengths": {
+        "0": {
+          "estimatedMotionScore": 7.709,
+          "averageLuma": 12.527
+        },
+        "64": {
+          "estimatedMotionScore": 13.902,
+          "averageLuma": 15.854
+        },
+        "128": {
+          "estimatedMotionScore": 35.008,
+          "averageLuma": 28.927
+        },
+        "192": {
+          "estimatedMotionScore": 65.406,
+          "averageLuma": 52.225
+        },
+        "255": {
+          "estimatedMotionScore": 69.435,
+          "averageLuma": 80.552
+        }
+      }
+    },
+    "wave": {
+      "strengthDeltaScore": 45.02,
+      "estimatedMotionScore": 26.172,
+      "strengthResponseProven": true,
+      "motionProvenAt128": true,
+      "strengths": {
+        "0": {
+          "estimatedMotionScore": 11.902,
+          "averageLuma": 49.689
+        },
+        "64": {
+          "estimatedMotionScore": 26.935,
+          "averageLuma": 52.114
+        },
+        "128": {
+          "estimatedMotionScore": 26.172,
+          "averageLuma": 64.856
+        },
+        "192": {
+          "estimatedMotionScore": 58.488,
+          "averageLuma": 75.423
+        },
+        "255": {
+          "estimatedMotionScore": 54.68,
+          "averageLuma": 79.568
+        }
+      }
+    },
+    "slow-wave": {
+      "strengthDeltaScore": 48.676,
+      "estimatedMotionScore": 32.913,
+      "strengthResponseProven": true,
+      "motionProvenAt128": true,
+      "strengths": {
+        "0": {
+          "estimatedMotionScore": 8.339,
+          "averageLuma": 49.421
+        },
+        "64": {
+          "estimatedMotionScore": 17.366,
+          "averageLuma": 52.269
+        },
+        "128": {
+          "estimatedMotionScore": 32.913,
+          "averageLuma": 64.935
+        },
+        "192": {
+          "estimatedMotionScore": 50.836,
+          "averageLuma": 78.23
+        },
+        "255": {
+          "estimatedMotionScore": 43.361,
+          "averageLuma": 85.613
+        }
+      }
+    },
+    "slow-pulse": {
+      "strengthDeltaScore": 149.286,
+      "estimatedMotionScore": 3.916,
+      "strengthResponseProven": true,
+      "motionProvenAt128": true,
+      "strengths": {
+        "0": {
+          "estimatedMotionScore": 0.055,
+          "averageLuma": 17.78
+        },
+        "64": {
+          "estimatedMotionScore": 0.58,
+          "averageLuma": 29.263
+        },
+        "128": {
+          "estimatedMotionScore": 3.916,
+          "averageLuma": 56.47
+        },
+        "192": {
+          "estimatedMotionScore": 10.507,
+          "averageLuma": 103.28
+        },
+        "255": {
+          "estimatedMotionScore": 9.881,
+          "averageLuma": 167.066
+        }
+      }
+    },
+    "rainbow": {
+      "strengthDeltaScore": 61.77,
+      "estimatedMotionScore": 41.59,
+      "strengthResponseProven": true,
+      "motionProvenAt128": true,
+      "strengths": {
+        "0": {
+          "estimatedMotionScore": 29.804,
+          "averageLuma": 31.667
+        },
+        "64": {
+          "estimatedMotionScore": 49.707,
+          "averageLuma": 39.623
+        },
+        "128": {
+          "estimatedMotionScore": 41.59,
+          "averageLuma": 47.573
+        },
+        "192": {
+          "estimatedMotionScore": 84.263,
+          "averageLuma": 55.538
+        },
+        "255": {
+          "estimatedMotionScore": 89.705,
+          "averageLuma": 63.333
+        }
+      }
+    },
+    "dawn-bloom": {
+      "strengthDeltaScore": 62.549,
+      "estimatedMotionScore": 40.694,
+      "strengthResponseProven": true,
+      "motionProvenAt128": true,
+      "strengths": {
+        "0": {
+          "estimatedMotionScore": 14.464,
+          "averageLuma": 61.827
+        },
+        "64": {
+          "estimatedMotionScore": 30.34,
+          "averageLuma": 63.364
+        },
+        "128": {
+          "estimatedMotionScore": 40.694,
+          "averageLuma": 75.987
+        },
+        "192": {
+          "estimatedMotionScore": 73.242,
+          "averageLuma": 88.427
+        },
+        "255": {
+          "estimatedMotionScore": 81.163,
+          "averageLuma": 95.751
+        }
+      }
+    },
+    "moon-tide": {
+      "strengthDeltaScore": 31.183,
+      "estimatedMotionScore": 19.98,
+      "strengthResponseProven": true,
+      "motionProvenAt128": true,
+      "strengths": {
+        "0": {
+          "estimatedMotionScore": 4.688,
+          "averageLuma": 24.345
+        },
+        "64": {
+          "estimatedMotionScore": 11.933,
+          "averageLuma": 28.443
+        },
+        "128": {
+          "estimatedMotionScore": 19.98,
+          "averageLuma": 36.958
+        },
+        "192": {
+          "estimatedMotionScore": 26.986,
+          "averageLuma": 48.448
+        },
+        "255": {
+          "estimatedMotionScore": 39.724,
+          "averageLuma": 50.107
+        }
+      }
+    },
+    "velvet-aurora": {
+      "strengthDeltaScore": 22.179,
+      "estimatedMotionScore": 12.409,
+      "strengthResponseProven": true,
+      "motionProvenAt128": true,
+      "strengths": {
+        "0": {
+          "estimatedMotionScore": 1.757,
+          "averageLuma": 5.189
+        },
+        "64": {
+          "estimatedMotionScore": 5.324,
+          "averageLuma": 6.935
+        },
+        "128": {
+          "estimatedMotionScore": 12.409,
+          "averageLuma": 12.938
+        },
+        "192": {
+          "estimatedMotionScore": 18.917,
+          "averageLuma": 19.57
+        },
+        "255": {
+          "estimatedMotionScore": 31.17,
+          "averageLuma": 23.625
+        }
+      }
+    },
+    "lantern-drift": {
+      "strengthDeltaScore": 105.735,
+      "estimatedMotionScore": 5.069,
+      "strengthResponseProven": true,
+      "motionProvenAt128": true,
+      "strengths": {
+        "0": {
+          "estimatedMotionScore": 0.128,
+          "averageLuma": 9.679
+        },
+        "64": {
+          "estimatedMotionScore": 1.031,
+          "averageLuma": 18.101
+        },
+        "128": {
+          "estimatedMotionScore": 5.069,
+          "averageLuma": 36.718
+        },
+        "192": {
+          "estimatedMotionScore": 10.765,
+          "averageLuma": 71.149
+        },
+        "255": {
+          "estimatedMotionScore": 12.922,
+          "averageLuma": 115.413
+        }
+      }
+    },
+    "rain-glass": {
+      "strengthDeltaScore": 24.976,
+      "estimatedMotionScore": 12.178,
+      "strengthResponseProven": true,
+      "motionProvenAt128": true,
+      "strengths": {
+        "0": {
+          "estimatedMotionScore": 3.784,
+          "averageLuma": 8.256
+        },
+        "64": {
+          "estimatedMotionScore": 7.223,
+          "averageLuma": 10.692
+        },
+        "128": {
+          "estimatedMotionScore": 12.178,
+          "averageLuma": 16.283
+        },
+        "192": {
+          "estimatedMotionScore": 22.444,
+          "averageLuma": 24.059
+        },
+        "255": {
+          "estimatedMotionScore": 27.811,
+          "averageLuma": 32.043
+        }
+      }
+    },
+    "satin-breathing": {
+      "strengthDeltaScore": 44.87,
+      "estimatedMotionScore": 19.193,
+      "strengthResponseProven": true,
+      "motionProvenAt128": true,
+      "strengths": {
+        "0": {
+          "estimatedMotionScore": 16.486,
+          "averageLuma": 91.283
+        },
+        "64": {
+          "estimatedMotionScore": 21.665,
+          "averageLuma": 91.069
+        },
+        "128": {
+          "estimatedMotionScore": 19.193,
+          "averageLuma": 105.417
+        },
+        "192": {
+          "estimatedMotionScore": 72.446,
+          "averageLuma": 121.861
+        },
+        "255": {
+          "estimatedMotionScore": 87.733,
+          "averageLuma": 96.588
+        }
+      }
+    },
+    "paper-lantern-row": {
+      "strengthDeltaScore": 105.735,
+      "estimatedMotionScore": 5.069,
+      "strengthResponseProven": true,
+      "motionProvenAt128": true,
+      "strengths": {
+        "0": {
+          "estimatedMotionScore": 0.128,
+          "averageLuma": 9.679
+        },
+        "64": {
+          "estimatedMotionScore": 1.031,
+          "averageLuma": 18.101
+        },
+        "128": {
+          "estimatedMotionScore": 5.069,
+          "averageLuma": 36.718
+        },
+        "192": {
+          "estimatedMotionScore": 10.765,
+          "averageLuma": 71.149
+        },
+        "255": {
+          "estimatedMotionScore": 12.922,
+          "averageLuma": 115.413
+        }
+      }
+    },
+    "library-lamp": {
+      "strengthDeltaScore": 3.107,
+      "estimatedMotionScore": 0.061,
+      "strengthResponseProven": true,
+      "motionProvenAt128": true,
+      "strengths": {
+        "0": {
+          "estimatedMotionScore": 0.008,
+          "averageLuma": 188.53
+        },
+        "64": {
+          "estimatedMotionScore": 0.019,
+          "averageLuma": 189.011
+        },
+        "128": {
+          "estimatedMotionScore": 0.061,
+          "averageLuma": 190.057
+        },
+        "192": {
+          "estimatedMotionScore": 0.108,
+          "averageLuma": 191.15
+        },
+        "255": {
+          "estimatedMotionScore": 0.153,
+          "averageLuma": 191.637
+        }
+      }
+    },
+    "solar-noon": {
+      "strengthDeltaScore": 1.306,
+      "estimatedMotionScore": 0.012,
+      "strengthResponseProven": true,
+      "motionProvenAt128": false,
+      "strengths": {
+        "0": {
+          "estimatedMotionScore": 0.001,
+          "averageLuma": 229.173
+        },
+        "64": {
+          "estimatedMotionScore": 0.003,
+          "averageLuma": 229.266
+        },
+        "128": {
+          "estimatedMotionScore": 0.012,
+          "averageLuma": 229.03
+        },
+        "192": {
+          "estimatedMotionScore": 0.024,
+          "averageLuma": 228.929
+        },
+        "255": {
+          "estimatedMotionScore": 0.035,
+          "averageLuma": 228.875
+        }
+      }
+    },
+    "golden-hour": {
+      "strengthDeltaScore": 51.987,
+      "estimatedMotionScore": 38.605,
+      "strengthResponseProven": true,
+      "motionProvenAt128": true,
+      "strengths": {
+        "0": {
+          "estimatedMotionScore": 13.127,
+          "averageLuma": 62.017
+        },
+        "64": {
+          "estimatedMotionScore": 27.803,
+          "averageLuma": 66.029
+        },
+        "128": {
+          "estimatedMotionScore": 38.605,
+          "averageLuma": 73.409
+        },
+        "192": {
+          "estimatedMotionScore": 54.787,
+          "averageLuma": 84.797
+        },
+        "255": {
+          "estimatedMotionScore": 69.842,
+          "averageLuma": 87.063
+        }
+      }
+    },
+    "dream-aquarium": {
+      "strengthDeltaScore": 24.342,
+      "estimatedMotionScore": 16.382,
+      "strengthResponseProven": true,
+      "motionProvenAt128": true,
+      "strengths": {
+        "0": {
+          "estimatedMotionScore": 4.67,
+          "averageLuma": 24.306
+        },
+        "64": {
+          "estimatedMotionScore": 10.456,
+          "averageLuma": 27.078
+        },
+        "128": {
+          "estimatedMotionScore": 16.382,
+          "averageLuma": 33.549
+        },
+        "192": {
+          "estimatedMotionScore": 22.613,
+          "averageLuma": 38.387
+        },
+        "255": {
+          "estimatedMotionScore": 29.495,
+          "averageLuma": 42.211
+        }
+      }
+    },
+    "circuit-glow": {
+      "strengthDeltaScore": 45.516,
+      "estimatedMotionScore": 20.097,
+      "strengthResponseProven": true,
+      "motionProvenAt128": true,
+      "strengths": {
+        "0": {
+          "estimatedMotionScore": 1.408,
+          "averageLuma": 3.863
+        },
+        "64": {
+          "estimatedMotionScore": 5.853,
+          "averageLuma": 6.057
+        },
+        "128": {
+          "estimatedMotionScore": 20.097,
+          "averageLuma": 13.85
+        },
+        "192": {
+          "estimatedMotionScore": 42.172,
+          "averageLuma": 29.705
+        },
+        "255": {
+          "estimatedMotionScore": 70.667,
+          "averageLuma": 48.935
+        }
+      }
+    },
+    "window-sunrise": {
+      "strengthDeltaScore": 89.466,
+      "estimatedMotionScore": 29.313,
+      "strengthResponseProven": true,
+      "motionProvenAt128": true,
+      "strengths": {
+        "0": {
+          "estimatedMotionScore": 1.422,
+          "averageLuma": 4.889
+        },
+        "64": {
+          "estimatedMotionScore": 12.689,
+          "averageLuma": 18.349
+        },
+        "128": {
+          "estimatedMotionScore": 29.313,
+          "averageLuma": 45.093
+        },
+        "192": {
+          "estimatedMotionScore": 36.736,
+          "averageLuma": 72.147
+        },
+        "255": {
+          "estimatedMotionScore": 39.794,
+          "averageLuma": 94.354
+        }
+      }
+    },
+    "ember-quilt": {
+      "strengthDeltaScore": 25.295,
+      "estimatedMotionScore": 16.788,
+      "strengthResponseProven": true,
+      "motionProvenAt128": true,
+      "strengths": {
+        "0": {
+          "estimatedMotionScore": 3.591,
+          "averageLuma": 20.034
+        },
+        "64": {
+          "estimatedMotionScore": 9.272,
+          "averageLuma": 23.094
+        },
+        "128": {
+          "estimatedMotionScore": 16.788,
+          "averageLuma": 27.964
+        },
+        "192": {
+          "estimatedMotionScore": 22.521,
+          "averageLuma": 33.302
+        },
+        "255": {
+          "estimatedMotionScore": 23.277,
+          "averageLuma": 35.819
+        }
+      }
+    },
+    "porcelain-sky": {
+      "strengthDeltaScore": 15.514,
+      "estimatedMotionScore": 5.92,
+      "strengthResponseProven": true,
+      "motionProvenAt128": true,
+      "strengths": {
+        "0": {
+          "estimatedMotionScore": 0.59,
+          "averageLuma": 160.212
+        },
+        "64": {
+          "estimatedMotionScore": 2.069,
+          "averageLuma": 162.498
+        },
+        "128": {
+          "estimatedMotionScore": 5.92,
+          "averageLuma": 167.366
+        },
+        "192": {
+          "estimatedMotionScore": 10.382,
+          "averageLuma": 172.387
+        },
+        "255": {
+          "estimatedMotionScore": 12.94,
+          "averageLuma": 174.278
+        }
+      }
+    },
+    "hearthline": {
+      "strengthDeltaScore": 27.33,
+      "estimatedMotionScore": 21.21,
+      "strengthResponseProven": true,
+      "motionProvenAt128": true,
+      "strengths": {
+        "0": {
+          "estimatedMotionScore": 6.92,
+          "averageLuma": 19.092
+        },
+        "64": {
+          "estimatedMotionScore": 14.856,
+          "averageLuma": 21.45
+        },
+        "128": {
+          "estimatedMotionScore": 21.21,
+          "averageLuma": 26.161
+        },
+        "192": {
+          "estimatedMotionScore": 30.819,
+          "averageLuma": 31.597
+        },
+        "255": {
+          "estimatedMotionScore": 39.087,
+          "averageLuma": 33.118
+        }
+      }
+    },
+    "evening-current": {
+      "strengthDeltaScore": 19.664,
+      "estimatedMotionScore": 13.864,
+      "strengthResponseProven": true,
+      "motionProvenAt128": true,
+      "strengths": {
+        "0": {
+          "estimatedMotionScore": 4.019,
+          "averageLuma": 23.453
+        },
+        "64": {
+          "estimatedMotionScore": 9.281,
+          "averageLuma": 25.745
+        },
+        "128": {
+          "estimatedMotionScore": 13.864,
+          "averageLuma": 30.527
+        },
+        "192": {
+          "estimatedMotionScore": 17.814,
+          "averageLuma": 37.322
+        },
+        "255": {
+          "estimatedMotionScore": 25.743,
+          "averageLuma": 38.095
+        }
+      }
+    },
+    "starlit-linen": {
+      "strengthDeltaScore": 13.877,
+      "estimatedMotionScore": 6.07,
+      "strengthResponseProven": true,
+      "motionProvenAt128": true,
+      "strengths": {
+        "0": {
+          "estimatedMotionScore": 0.942,
+          "averageLuma": 6.116
+        },
+        "64": {
+          "estimatedMotionScore": 2.694,
+          "averageLuma": 7.242
+        },
+        "128": {
+          "estimatedMotionScore": 6.07,
+          "averageLuma": 9.95
+        },
+        "192": {
+          "estimatedMotionScore": 11.509,
+          "averageLuma": 14.056
+        },
+        "255": {
+          "estimatedMotionScore": 17.119,
+          "averageLuma": 19.337
+        }
+      }
+    },
+    "deep-sea-glass": {
+      "strengthDeltaScore": 24.342,
+      "estimatedMotionScore": 16.382,
+      "strengthResponseProven": true,
+      "motionProvenAt128": true,
+      "strengths": {
+        "0": {
+          "estimatedMotionScore": 4.67,
+          "averageLuma": 24.306
+        },
+        "64": {
+          "estimatedMotionScore": 10.456,
+          "averageLuma": 27.078
+        },
+        "128": {
+          "estimatedMotionScore": 16.382,
+          "averageLuma": 33.549
+        },
+        "192": {
+          "estimatedMotionScore": 22.613,
+          "averageLuma": 38.387
+        },
+        "255": {
+          "estimatedMotionScore": 29.495,
+          "averageLuma": 42.211
+        }
+      }
+    },
+    "quiet-northern-lights": {
+      "strengthDeltaScore": 111.901,
+      "estimatedMotionScore": 11.176,
+      "strengthResponseProven": true,
+      "motionProvenAt128": true,
+      "strengths": {
+        "0": {
+          "estimatedMotionScore": 0.259,
+          "averageLuma": 2.628
+        },
+        "64": {
+          "estimatedMotionScore": 1.491,
+          "averageLuma": 5.246
+        },
+        "128": {
+          "estimatedMotionScore": 11.176,
+          "averageLuma": 21.906
+        },
+        "192": {
+          "estimatedMotionScore": 35.854,
+          "averageLuma": 65.264
+        },
+        "255": {
+          "estimatedMotionScore": 50.952,
+          "averageLuma": 114.529
+        }
+      }
+    },
+    "candle-hall": {
+      "strengthDeltaScore": 47.6,
+      "estimatedMotionScore": 0.47,
+      "strengthResponseProven": true,
+      "motionProvenAt128": true,
+      "strengths": {
+        "0": {
+          "estimatedMotionScore": 0.203,
+          "averageLuma": 6.369
+        },
+        "64": {
+          "estimatedMotionScore": 0.132,
+          "averageLuma": 9.502
+        },
+        "128": {
+          "estimatedMotionScore": 0.47,
+          "averageLuma": 19.042
+        },
+        "192": {
+          "estimatedMotionScore": 0.762,
+          "averageLuma": 34.514
+        },
+        "255": {
+          "estimatedMotionScore": 1.27,
+          "averageLuma": 53.863
+        }
+      }
+    },
+    "slow-prism": {
+      "strengthDeltaScore": 27.821,
+      "estimatedMotionScore": 16.441,
+      "strengthResponseProven": true,
+      "motionProvenAt128": true,
+      "strengths": {
+        "0": {
+          "estimatedMotionScore": 2.92,
+          "averageLuma": 59.346
+        },
+        "64": {
+          "estimatedMotionScore": 8.458,
+          "averageLuma": 61.111
+        },
+        "128": {
+          "estimatedMotionScore": 16.441,
+          "averageLuma": 60.538
+        },
+        "192": {
+          "estimatedMotionScore": 25.545,
+          "averageLuma": 58.522
+        },
+        "255": {
+          "estimatedMotionScore": 34.014,
+          "averageLuma": 58.447
+        }
+      }
+    },
+    "garden-shade": {
+      "strengthDeltaScore": 27.652,
+      "estimatedMotionScore": 18.012,
+      "strengthResponseProven": true,
+      "motionProvenAt128": true,
+      "strengths": {
+        "0": {
+          "estimatedMotionScore": 5.306,
+          "averageLuma": 83.295
+        },
+        "64": {
+          "estimatedMotionScore": 12.955,
+          "averageLuma": 86.904
+        },
+        "128": {
+          "estimatedMotionScore": 18.012,
+          "averageLuma": 91.447
+        },
+        "192": {
+          "estimatedMotionScore": 22.717,
+          "averageLuma": 96.452
+        },
+        "255": {
+          "estimatedMotionScore": 29.372,
+          "averageLuma": 98.938
+        }
+      }
+    },
+    "snowfall-hush": {
+      "strengthDeltaScore": 13.253,
+      "estimatedMotionScore": 6.718,
+      "strengthResponseProven": true,
+      "motionProvenAt128": true,
+      "strengths": {
+        "0": {
+          "estimatedMotionScore": 1.092,
+          "averageLuma": 6.061
+        },
+        "64": {
+          "estimatedMotionScore": 3.128,
+          "averageLuma": 7.127
+        },
+        "128": {
+          "estimatedMotionScore": 6.718,
+          "averageLuma": 9.723
+        },
+        "192": {
+          "estimatedMotionScore": 12.247,
+          "averageLuma": 13.664
+        },
+        "255": {
+          "estimatedMotionScore": 19.942,
+          "averageLuma": 18.793
+        }
+      }
+    },
+    "observatory-glow": {
+      "strengthDeltaScore": 31.674,
+      "estimatedMotionScore": 10.207,
+      "strengthResponseProven": true,
+      "motionProvenAt128": true,
+      "strengths": {
+        "0": {
+          "estimatedMotionScore": 1.937,
+          "averageLuma": 14.035
+        },
+        "64": {
+          "estimatedMotionScore": 5.084,
+          "averageLuma": 18.043
+        },
+        "128": {
+          "estimatedMotionScore": 10.207,
+          "averageLuma": 25.57
+        },
+        "192": {
+          "estimatedMotionScore": 16.991,
+          "averageLuma": 34.578
+        },
+        "255": {
+          "estimatedMotionScore": 22.23,
+          "averageLuma": 40.773
+        }
+      }
+    },
+    "rainy-window": {
+      "strengthDeltaScore": 24.976,
+      "estimatedMotionScore": 12.178,
+      "strengthResponseProven": true,
+      "motionProvenAt128": true,
+      "strengths": {
+        "0": {
+          "estimatedMotionScore": 3.784,
+          "averageLuma": 8.256
+        },
+        "64": {
+          "estimatedMotionScore": 7.223,
+          "averageLuma": 10.692
+        },
+        "128": {
+          "estimatedMotionScore": 12.178,
+          "averageLuma": 16.283
+        },
+        "192": {
+          "estimatedMotionScore": 22.444,
+          "averageLuma": 24.059
+        },
+        "255": {
+          "estimatedMotionScore": 27.811,
+          "averageLuma": 32.043
+        }
+      }
+    },
+    "campfire-blanket": {
+      "strengthDeltaScore": 27.515,
+      "estimatedMotionScore": 20.758,
+      "strengthResponseProven": true,
+      "motionProvenAt128": true,
+      "strengths": {
+        "0": {
+          "estimatedMotionScore": 7.606,
+          "averageLuma": 37.536
+        },
+        "64": {
+          "estimatedMotionScore": 12.911,
+          "averageLuma": 40.247
+        },
+        "128": {
+          "estimatedMotionScore": 20.758,
+          "averageLuma": 47.007
+        },
+        "192": {
+          "estimatedMotionScore": 25.572,
+          "averageLuma": 54.922
+        },
+        "255": {
+          "estimatedMotionScore": 28.615,
+          "averageLuma": 58.935
+        }
+      }
+    },
+    "northern-whisper": {
+      "strengthDeltaScore": 15.892,
+      "estimatedMotionScore": 6.674,
+      "strengthResponseProven": true,
+      "motionProvenAt128": true,
+      "strengths": {
+        "0": {
+          "estimatedMotionScore": 0.86,
+          "averageLuma": 5.545
+        },
+        "64": {
+          "estimatedMotionScore": 2.55,
+          "averageLuma": 6.172
+        },
+        "128": {
+          "estimatedMotionScore": 6.674,
+          "averageLuma": 10.533
+        },
+        "192": {
+          "estimatedMotionScore": 12.166,
+          "averageLuma": 14.064
+        },
+        "255": {
+          "estimatedMotionScore": 16.378,
+          "averageLuma": 17.024
+        }
+      }
+    },
+    "storm-outside": {
+      "strengthDeltaScore": 19.562,
+      "estimatedMotionScore": 10.037,
+      "strengthResponseProven": true,
+      "motionProvenAt128": true,
+      "strengths": {
+        "0": {
+          "estimatedMotionScore": 2.935,
+          "averageLuma": 12.986
+        },
+        "64": {
+          "estimatedMotionScore": 5.164,
+          "averageLuma": 15.052
+        },
+        "128": {
+          "estimatedMotionScore": 10.037,
+          "averageLuma": 22.101
+        },
+        "192": {
+          "estimatedMotionScore": 26.159,
+          "averageLuma": 46.936
+        },
+        "255": {
+          "estimatedMotionScore": 16.587,
+          "averageLuma": 31.231
+        }
+      }
+    }
+  }
+}
